@@ -1,0 +1,26 @@
+{
+  "name": "gravity-sim",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "live-server --port=8080 --open=index.html",
+    "docs": "jsdoc -c jsdoc.config.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wolzo/gravity-sim.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Wolzo/gravity-sim/issues"
+  },
+  "homepage": "https://github.com/Wolzo/gravity-sim#readme",
+  "devDependencies": {
+    "jsdoc": "^4.0.5",
+    "live-server": "^1.2.2"
+  }
+}
