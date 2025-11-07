@@ -3,22 +3,11 @@
  * Handles canvas DPI and draws trails + bodies.
  */
 export class Renderer {
-  /**
-   * @param {HTMLCanvasElement} canvas
-   * @param {import("../core/simulation.js").Simulation} simulation
-   */
   constructor(canvas, simulation) {
-    /** @type {HTMLCanvasElement} */
     this.canvas = canvas;
-
-    /** @type {CanvasRenderingContext2D} */
     this.ctx = canvas.getContext("2d");
-
-    /** @type {import("../core/simulation.js").Simulation} */
     this.simulation = simulation;
-
     this.dpr = window.devicePixelRatio || 1;
-
     this.resize();
   }
 
@@ -58,10 +47,6 @@ export class Renderer {
     ctx.restore();
   }
 
-  /**
-   * @param {import("../core/body.js").Body} body
-   * @private
-   */
   _drawBody(body) {
     const { ctx } = this;
 
@@ -71,10 +56,6 @@ export class Renderer {
     ctx.fill();
   }
 
-  /**
-   * @param {import("../core/body.js").Body} body
-   * @private
-   */
   _drawTrail(body) {
     const { ctx } = this;
     if (!body.trail || body.trail.length < 2) return;

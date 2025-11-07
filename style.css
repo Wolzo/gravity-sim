@@ -1,0 +1,125 @@
+body {
+    margin: 0;
+    background: #02030a;
+    color: #ffffff;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated;
+}
+
+#hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 6px 12px;
+    box-sizing: border-box;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    background: rgba(5, 8, 22, 0.8);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    z-index: 10;
+    pointer-events: none;
+}
+
+#hud .hud-left span {
+    margin-right: 16px;
+    font-size: 13px;
+    font-family: monospace;
+    opacity: 0.9;
+}
+
+#hud .hud-right {
+    display: flex;
+    gap: 8px;
+    pointer-events: auto;
+    align-items: center;
+}
+
+#hud button {
+    background: none;
+    border: none;
+    padding: 4px;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+#hud button:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#hud svg {
+    display: block;
+}
+
+.hud-speed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 8px;
+}
+
+.hud-speed-label {
+  font-size: 12px;
+  font-family: monospace;
+  opacity: 0.8;
+}
+
+#speed-slider {
+  width: 90px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#speed-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+}
+
+#speed-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+}
+
+#speed-slider::-moz-range-track {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+#seed-select {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  padding: 2px 6px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+}

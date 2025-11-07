@@ -12,39 +12,18 @@ import { Body } from "./body.js";
  * Holds bodies, applies gravity, integrates motion, merges collisions.
  */
 export class Simulation {
-  /**
-   * @param {Object} [options]
-   * @param {number} [options.G]
-   * @param {number} [options.softening]
-   */
   constructor({ G = GRAVITY_CONSTANT, softening = SOFTENING } = {}) {
-    /** @type {number} */
     this.G = G;
-
-    /** @type {number} */
     this.softening = softening;
-
-    /** @type {Body[]} */
     this.bodies = [];
-
-    /** @type {number} */
     this.time = 0;
-
-    /** @type {number} */
     this.collisionCount = 0;
   }
 
-  /**
-   * Add a body to the simulation (no cloning).
-   * @param {Body} body
-   */
   addBody(body) {
     this.bodies.push(body);
   }
 
-  /**
-   * Remove all bodies and reset time / counters.
-   */
   clear() {
     this.bodies.length = 0;
     this.time = 0;
@@ -52,8 +31,7 @@ export class Simulation {
   }
 
   /**
-   * Advance the simulation by `dt` seconds.
-   * @param {number} dt
+   * Advance the simulation by dt seconds.
    */
   step(dt) {
     if (!Number.isFinite(dt) || dt <= 0) return;
@@ -65,20 +43,14 @@ export class Simulation {
 
     this._computeForces();
     this._integrate(dt);
-    this._resolveCollisions();
+    //this._resolveCollisions();
     this.time += dt;
   }
 
-  /**
-   * @returns {number}
-   */
   getBodyCount() {
     return this.bodies.length;
   }
 
-  /**
-   * @returns {number}
-   */
   getTotalKineticEnergy() {
     return this.bodies.reduce(
       (sum, b) => sum + b.kineticEnergy(),
@@ -86,10 +58,6 @@ export class Simulation {
     );
   }
 
-  /**
-   * Simple snapshot used for logging / HUD.
-   * @returns {{time:number, bodies:number, collisions:number, kineticEnergy:number}}
-   */
   getSummary() {
     return {
       time: this.time,
@@ -99,6 +67,13 @@ export class Simulation {
     };
   }
 
+  /**
+   * Computes gravitational accelerations between all bodies in the system.
+   * Applies Newton’s law of universal gravitation (F = G * m1 * m2 / r^2)
+   * and updates each body’s acceleration accordingly.
+   * Uses a small softening term to prevent numerical instabilities
+   * when two bodies are very close to each other.
+   */
   _computeForces() {
     const n = this.bodies.length;
 
@@ -134,6 +109,14 @@ export class Simulation {
     }
   }
 
+  /**
+   * Integrates the equations of motion by updating each body's
+   * velocity and position based on its current acceleration.
+   * Implements a semi-implicit (symplectic) Euler integrator,
+   * which provides better energy conservation for orbital systems.
+   * Also records recent positions to generate a visible trail
+   * for rendering orbital paths.
+   */
   _integrate(dt) {
     for (const body of this.bodies) {
       body.velocity.x += body.acceleration.x * dt;
@@ -153,10 +136,18 @@ export class Simulation {
     }
   }
 
+  /**
+   * Detects and resolves collisions between bodies.
+   * When two bodies overlap (distance < sum of radii),
+   * they merge into a single body conserving total mass
+   * and linear momentum.
+   * The merged body is placed at the center of mass,
+   * moves with the mass-weighted average velocity,
+   * and has a radius based on the combined area of both bodies.
+   */
   _resolveCollisions() {
     const n = this.bodies.length;
     const alive = new Array(n).fill(true);
-    /** @type {Body[]} */
     const mergedBodies = [];
 
     for (let i = 0; i < n; i++) {
