@@ -43,7 +43,7 @@ export class Simulation {
 
     this._computeForces();
     this._integrate(dt);
-    //this._resolveCollisions();
+    this._resolveCollisions();
     this.time += dt;
   }
 

@@ -18,7 +18,7 @@ export function initHud(renderer, seeds, defaultSeedKey) {
 
     const fpsCounter = document.getElementById("fps-counter");
     const bodiesCounter = document.getElementById("bodies-counter");
-    const collisionCounter = document.getElementById("collision-counter");
+    const collisionCounter = document.getElementById("collisions-counter");
 
     const speedSlider = document.getElementById("speed-slider");
     const hudSpeedValue = document.getElementById("hud-speed-value");
