@@ -25,15 +25,7 @@ export function initHud(renderer, seeds, defaultSeedKey) {
 
     const seedSelect = document.getElementById("seed-select");
 
-    btnToggle.addEventListener("click", () => {
-        running = !running;
-
-        if (running) {
-            iconToggle.setAttribute("d", "M6 19h4V5H6zm8-14v14h4V5h-4z");
-        } else {
-            iconToggle.setAttribute("d", "M8 5v14l11-7z");
-        }
-    });
+    btnToggle.addEventListener("click", () => toggleRunning());
 
     btnReset.addEventListener("click", () => {
         const seed = seeds[currentSeedKey];
@@ -99,9 +91,25 @@ export function initHud(renderer, seeds, defaultSeedKey) {
         }
     }
 
+    function toggleRunning(disableHud = false) {
+        running = !running;
+
+        btnToggle.disabled = disableHud;
+        btnReset.disabled = disableHud;
+        speedSlider.disabled = disableHud;
+        seedSelect.disabled = disableHud;
+
+        if (running) {
+            iconToggle.setAttribute("d", "M6 19h4V5H6zm8-14v14h4V5h-4z");
+        } else {
+            iconToggle.setAttribute("d", "M8 5v14l11-7z");
+        }
+    }
+
     return {
         isRunning: () => running,
         getTimeScale: () => timeScale,
+        toggleRunning,
         updateHud
     };
 }

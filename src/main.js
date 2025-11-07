@@ -3,6 +3,7 @@ import { MAX_DT } from "./core/config.js";
 import { Renderer } from "./render/renderer.js";
 import { initHud } from "./ui/hud.js";
 import { SEEDS, DEFAULT_SEED_KEY } from "./seeds/index.js";
+import { CreationController } from "./core/creations.js";
 
 const canvas = document.getElementById("simCanvas");
 
@@ -14,6 +15,8 @@ window.addEventListener("resize", () => renderer.resize());
 SEEDS[DEFAULT_SEED_KEY].apply(renderer);
 
 const hud = initHud(renderer, SEEDS, DEFAULT_SEED_KEY);
+
+const creation = new CreationController(simulation, canvas, hud);
 
 let lastTime = performance.now();
 function loop(now) {
@@ -28,6 +31,7 @@ function loop(now) {
   }
 
   renderer.draw();
+  creation.drawPreview(canvas);
   hud.updateHud(rawDt);
 
   requestAnimationFrame(loop);
