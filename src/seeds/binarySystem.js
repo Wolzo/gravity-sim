@@ -9,7 +9,7 @@ import { Vec2 } from "../core/vector2.js";
 export function seedBinarySystem(renderer) {
   const simulation = renderer?.simulation;
   const canvas = renderer?.canvas;
-  
+
   const rect = canvas.getBoundingClientRect();
   const cx = rect.width / 2;
   const cy = rect.height / 2;
