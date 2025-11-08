@@ -6,6 +6,7 @@ import {
 
 import { Vec2 } from "./vector2.js";
 import { Body } from "./body.js";
+import { radiusFromMass } from "./config.js";
 
 /**
  * Core N-body gravity simulation.
@@ -181,9 +182,7 @@ export class Simulation {
               bj.position.y * bj.mass) /
             totalMass;
 
-          const newRadius = Math.sqrt(
-            bi.radius * bi.radius + bj.radius * bj.radius
-          );
+          const newRadius = radiusFromMass(totalMass);
 
           const color = bi.mass >= bj.mass ? bi.color : bj.color;
 

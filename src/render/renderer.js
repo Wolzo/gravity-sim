@@ -3,10 +3,11 @@
  * Handles canvas DPI and draws trails + bodies.
  */
 export class Renderer {
-  constructor(canvas, simulation) {
+  constructor(canvas, simulation, camera) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.simulation = simulation;
+    this.camera = camera;
     this.dpr = window.devicePixelRatio || 1;
     this.resize();
   }
@@ -27,17 +28,32 @@ export class Renderer {
   /**
    * Render a full frame: background + trails + bodies.
    */
-  draw() {
-    const { ctx, canvas, dpr } = this;
-
-    ctx.save();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw() {
+    const { ctx, canvas, dpr, camera } = this;
 
     const width = canvas.width / dpr;
     const height = canvas.height / dpr;
 
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = "#050816";
     ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+
+    ctx.save();
+
+    const zoom = camera?.zoom ?? 1;
+    const camX = camera?.position.x ?? 0;
+    const camY = camera?.position.y ?? 0;
+
+    ctx.setTransform(
+      dpr * zoom,
+      0,
+      0,
+      dpr * zoom,
+      -camX * dpr * zoom,
+      -camY * dpr * zoom
+    );
 
     for (const body of this.simulation.bodies) {
       this._drawTrail(body);

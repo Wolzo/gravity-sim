@@ -1,5 +1,7 @@
 import { Vec2 } from "./vector2.js";
 import { Body } from "./body.js";
+import { massFromRadius } from "./config.js";
+import { clamp } from "../utils/utils.js";
 
 const CREATION_STATES = {
     IDLE: "IDLE",
@@ -8,10 +10,12 @@ const CREATION_STATES = {
 };
 
 export class CreationController {
-    constructor(simulation, canvas, hud) {
+    constructor(simulation, canvas, hud, camera) {
         this.simulation = simulation;
         this.canvas = canvas;
         this.hud = hud;
+        this.camera = camera;
+
         this.mode = CREATION_STATES.IDLE;
         this.center = null;
         this.radius = 0;
@@ -25,9 +29,14 @@ export class CreationController {
         this.minArrowLength = 0;
         this.maxArrowLength = 600;
 
+        this.isPanning = false;
+        this.lastPanScreen = null;
+
         this._onMouseDown = this._onMouseDown.bind(this);
         this._onMouseMove = this._onMouseMove.bind(this);
+        this._onMouseUp = this._onMouseUp.bind(this);
         this._onKeyDown = this._onKeyDown.bind(this);
+        this._onWheel = this._onWheel.bind(this);
 
         this._attachEventListeners();
     }
@@ -50,6 +59,10 @@ export class CreationController {
     _attachEventListeners() {
         this.canvas.addEventListener("mousedown", this._onMouseDown);
         this.canvas.addEventListener("mousemove", this._onMouseMove);
+        this.canvas.addEventListener("mouseup", this._onMouseUp);
+        this.canvas.addEventListener("mouseleave", this._onMouseUp);
+        this.canvas.addEventListener("wheel", this._onWheel, { passive: false });
+
         window.addEventListener("keydown", this._onKeyDown);
         this.canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     }
@@ -68,14 +81,19 @@ export class CreationController {
 
         if (event.target !== this.canvas) return;
 
-        const pos = this._getMousePos(event);
-
-        if (event.button === 2 && this.mode !== CREATION_STATES.IDLE) {
-            this._reset();
+        if (event.button === 2) {
+            if (this.mode !== CREATION_STATES.IDLE) {
+                this._reset();
+            } else {
+                this.isPanning = true;
+                this.lastPanScreen = { x: event.clientX, y: event.clientY };
+            }
             return;
         }
 
         if (event.button !== 0) return;
+
+        const pos = this._getMousePos(event);
 
         switch (this.mode) {
             case CREATION_STATES.IDLE:
@@ -97,6 +115,20 @@ export class CreationController {
     }
 
     _onMouseMove(event) {
+        if (this.isPanning && this.lastPanScreen) {
+            const dxScreen = event.clientX - this.lastPanScreen.x;
+            const dyScreen = event.clientY - this.lastPanScreen.y;
+
+            this.lastPanScreen = { x: event.clientX, y: event.clientY };
+
+            const invZoom = 1 / (this.camera?.zoom ?? 1);
+
+            this.camera.position.x -= dxScreen * invZoom;
+            this.camera.position.y -= dyScreen * invZoom;
+
+            return;
+        }
+
         const pos = this._getMousePos(event);
         this.lastMouse = pos;
 
@@ -104,6 +136,26 @@ export class CreationController {
             const dist = this._distance(this.center, pos);
             this.radius = clamp(dist, this.minRadius, this.maxRadius);
         }
+    }
+
+    _onMouseUp(event) {
+        if (event.button === 2) {
+            this.isPanning = false;
+            this.lastPanScreen = null;
+        }
+    }
+
+    _onWheel(event) {
+        event.preventDefault();
+
+        if (!this.camera) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const sx = event.clientX - rect.left;
+        const sy = event.clientY - rect.top;
+
+        const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
+        this.camera.zoomAt(sx, sy, zoomFactor);
     }
 
     _onKeyDown(event) {
@@ -114,7 +166,14 @@ export class CreationController {
 
     _getMousePos(event) {
         const rect = this.canvas.getBoundingClientRect();
-        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        const sx = event.clientX - rect.left;
+        const sy = event.clientY - rect.top;
+
+        if (!this.camera) {
+            return { x: sx, y: sy };
+        }
+
+        return this.camera.screenToWorld(sx, sy);
     }
 
     _distance(a, b) {
@@ -129,7 +188,7 @@ export class CreationController {
             y: (pos.y - this.center.y) * this.velocityScale,
         };
 
-        const mass = Math.PI * (this.radius * this.radius) * 0.5;
+        const mass = massFromRadius(this.radius);
         const body = new Body({
             position: new Vec2(this.center.x, this.center.y),
             velocity: new Vec2(velocity.x, velocity.y),
@@ -149,12 +208,22 @@ export class CreationController {
         this.hud.toggleRunning(false);
     }
 
-    drawPreview(canvas) {
+    drawPreview() {
+        const canvas = this.canvas;
         const ctx = canvas.getContext("2d");
+        const dpr = window.devicePixelRatio || 1;
+        const zoom = this.camera?.zoom ?? 1;
+
+        ctx.save();
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
         if ((this.mode === CREATION_STATES.RADIUS || this.mode === CREATION_STATES.VELOCITY) && this.center && this.radius > 0) {
-            ctx.save();
+            const centerScreen = this.camera 
+                ? this.camera.worldToScreen(this.center.x, this.center.y) 
+                : this.center;
+
             ctx.beginPath();
-            ctx.arc(this.center.x, this.center.y, this.radius, 0, 2 * Math.PI);
+            ctx.arc(centerScreen.x, centerScreen.y, this.radius * zoom, 0, 2 * Math.PI);
 
             ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
             ctx.fill();
@@ -162,12 +231,19 @@ export class CreationController {
             ctx.lineWidth = 1;
             ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
             ctx.stroke();
-            ctx.restore();
         }
 
         if (this.mode === CREATION_STATES.VELOCITY && this.center && this.lastMouse) {
-            const dx = this.lastMouse.x - this.center.x;
-            const dy = this.lastMouse.y - this.center.y;
+            const centerScreen = this.camera
+                ? this.camera.worldToScreen(this.center.x, this.center.y)
+                : this.center;
+
+            const mouseScreen = this.camera
+                ? this.camera.worldToScreen(this.lastMouse.x, this.lastMouse.y)
+                : this.lastMouse;
+
+            const dx = mouseScreen.x - centerScreen.x;
+            const dy = mouseScreen.y - centerScreen.y;
             const len = Math.sqrt(dx * dx + dy * dy);
 
             if (len > 0.0001) {
@@ -175,12 +251,10 @@ export class CreationController {
                 const ux = dx / len;
                 const uy = dy / len;
 
-                const startX = this.center.x;
-                const startY = this.center.y;
-                const endX = this.center.x + ux * clampedLen;
-                const endY = this.center.y + uy * clampedLen;
-
-                const headSize = 10;
+                const startX = centerScreen.x;
+                const startY = centerScreen.y;
+                const endX = centerScreen.x + ux * clampedLen;
+                const endY = centerScreen.y + uy * clampedLen;
 
                 ctx.save();
                 ctx.lineWidth = 2;
@@ -192,6 +266,7 @@ export class CreationController {
                 ctx.lineTo(endX, endY);
                 ctx.stroke();
 
+                const headSize = 10;
                 ctx.beginPath();
                 ctx.moveTo(endX, endY);
                 ctx.lineTo(
@@ -208,9 +283,7 @@ export class CreationController {
                 ctx.restore();
             }
         }
-    }
-}
 
-function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+        ctx.restore();
+    }
 }

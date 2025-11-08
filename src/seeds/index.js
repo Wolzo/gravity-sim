@@ -12,4 +12,4 @@ export const SEEDS = {
     }
 };
 
-export const DEFAULT_SEED_KEY = "binary";
+export const DEFAULT_SEED_KEY = "solar";

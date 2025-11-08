@@ -1,5 +1,6 @@
 import { Body } from "../core/body.js";
 import { Vec2 } from "../core/vector2.js";
+import { radiusFromMass } from "../core/config.js";
 
 /**
  * Creates a simulation of the solar system with the Sun and major planets
@@ -10,45 +11,59 @@ export function seedSolarSystem(renderer) {
   const simulation = renderer?.simulation;
   const canvas = renderer?.canvas;
 
+  if (!simulation || !canvas) return;
+
+  simulation.clear();
+
   const rect = canvas.getBoundingClientRect();
   const cx = rect.width / 2;
   const cy = rect.height / 2;
 
-  simulation.clear();
+  const EARTH_MASS_BASE = 1e-6;
 
-  const RADIUS_SCALE = 1.5;
+  const SUN_MASS_REL = 333000;
+  const SUN_MASS = EARTH_MASS_BASE * SUN_MASS_REL;
 
-  const SUN_MASS = 5000;
-  const SUN_RADIUS = 10;
-  const G = simulation.G;
+  const VISUAL_RADIUS_SCALE = 40;
+  const MIN_RADIUS = 2;
+  const MAX_RADIUS = 26;
+
+  const MAX_SEMI_MAJOR_AU = 30;
+  const DIST_SCALE =
+    (Math.min(rect.width, rect.height) * 0.4) /
+    Math.sqrt(MAX_SEMI_MAJOR_AU);
+
+  const G =
+    typeof simulation.G === "number"
+      ? simulation.G
+      : GRAVITY_CONSTANT;
+
+  const planets = [
+    { name: "Mercury", aAU: 0.39, massRel: 0.055,  color: "#c2b28f" },
+    { name: "Venus",   aAU: 0.72, massRel: 0.815,  color: "#e0c896" },
+    { name: "Earth",   aAU: 1.00, massRel: 1.000,  color: "#6fa8ff" },
+    { name: "Mars",    aAU: 1.52, massRel: 0.107,  color: "#ff7043" },
+    { name: "Jupiter", aAU: 5.20, massRel: 317.8,  color: "#f2d1a0" },
+    { name: "Saturn",  aAU: 9.58, massRel: 95.20,  color: "#f5e2b8" },
+    { name: "Uranus",  aAU: 19.2, massRel: 14.50,  color: "#9ad9ff" },
+    { name: "Neptune", aAU: 30.1, massRel: 17.10,  color: "#5b8cff" }
+  ];
+
+  const sunRadiusBase = radiusFromMass(SUN_MASS) * VISUAL_RADIUS_SCALE;
+  const sunRadius = Math.min(40, Math.max(10, sunRadiusBase));
 
   simulation.addBody(
     new Body({
       position: new Vec2(cx, cy),
       velocity: new Vec2(0, 0),
       mass: SUN_MASS,
-      radius: SUN_RADIUS * RADIUS_SCALE,
-      color: "#f5d76e"
+      radius: sunRadius,
+      color: "#ffdd88"
     })
   );
 
-  const planets = [
-    { name: "Mercury", aAU: 0.39, radiusPlanet: 0.383, color: "#c2b19f" },
-    { name: "Venus", aAU: 0.72, radiusPlanet: 0.949, color: "#f5c06d" },
-    { name: "Earth", aAU: 1.00, radiusPlanet: 1.000, color: "#4da6ff" },
-    { name: "Mars", aAU: 1.52, radiusPlanet: 0.532, color: "#ff6f4d" },
-    { name: "Jupiter", aAU: 5.20, radiusPlanet: 11.20, color: "#f0d9b5" },
-    { name: "Saturn", aAU: 9.58, radiusPlanet: 9.450, color: "#f8e3b0" },
-    { name: "Uranus", aAU: 19.2, radiusPlanet: 4.010, color: "#9be7ff" },
-    { name: "Neptune", aAU: 30.1, radiusPlanet: 3.880, color: "#4f7dff" }
-  ];
-
-  const DIST_SCALE = 80;
-  const BASE_RADIUS = 4;
-  const PLANET_MASS = 0.01;
-
   for (const p of planets) {
-    const distance = DIST_SCALE * Math.sqrt(p.aAU);
+    const distance = Math.sqrt(p.aAU) * DIST_SCALE;
 
     const angle = Math.random() * Math.PI * 2;
 
@@ -56,17 +71,19 @@ export function seedSolarSystem(renderer) {
     const y = cy + distance * Math.sin(angle);
 
     const orbitalSpeed = Math.sqrt((G * SUN_MASS) / distance);
-
     const vx = -orbitalSpeed * Math.sin(angle);
-    const vy = orbitalSpeed * Math.cos(angle);
+    const vy =  orbitalSpeed * Math.cos(angle);
 
-    const radius = BASE_RADIUS * RADIUS_SCALE * Math.cbrt(p.radiusPlanet);
+    const mass = EARTH_MASS_BASE * p.massRel;
+
+    const radiusBase = radiusFromMass(mass) * VISUAL_RADIUS_SCALE;
+    const radius = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, radiusBase));
 
     simulation.addBody(
       new Body({
         position: new Vec2(x, y),
         velocity: new Vec2(vx, vy),
-        mass: PLANET_MASS,
+        mass,
         radius,
         color: p.color
       })
