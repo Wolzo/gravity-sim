@@ -1,12 +1,8 @@
-import {
-  GRAVITY_CONSTANT,
-  SOFTENING,
-  TRAIL_LENGTH
-} from "./config.js";
+import { GRAVITY_CONSTANT, SOFTENING, TRAIL_LENGTH } from './config.js';
 
-import { Vec2 } from "./vector2.js";
-import { Body } from "./body.js";
-import { radiusFromMass } from "./config.js";
+import { Vec2 } from './vector2.js';
+import { Body } from './body.js';
+import { radiusFromMass } from './config.js';
 
 /**
  * Core N-body gravity simulation.
@@ -53,10 +49,7 @@ export class Simulation {
   }
 
   getTotalKineticEnergy() {
-    return this.bodies.reduce(
-      (sum, b) => sum + b.kineticEnergy(),
-      0
-    );
+    return this.bodies.reduce((sum, b) => sum + b.kineticEnergy(), 0);
   }
 
   getSummary() {
@@ -64,7 +57,7 @@ export class Simulation {
       time: this.time,
       bodies: this.bodies.length,
       collisions: this.collisionCount,
-      kineticEnergy: this.getTotalKineticEnergy()
+      kineticEnergy: this.getTotalKineticEnergy(),
     };
   }
 
@@ -91,8 +84,7 @@ export class Simulation {
         const dx = bj.position.x - bi.position.x;
         const dy = bj.position.y - bi.position.y;
 
-        const distSq =
-          dx * dx + dy * dy + this.softening * this.softening;
+        const distSq = dx * dx + dy * dy + this.softening * this.softening;
         const dist = Math.sqrt(distSq);
         const invDist3 = 1.0 / (distSq * dist); // 1 / r^3
 
@@ -128,7 +120,7 @@ export class Simulation {
 
       body.trail.push({
         x: body.position.x,
-        y: body.position.y
+        y: body.position.y,
       });
 
       if (TRAIL_LENGTH !== -1 && body.trail.length > TRAIL_LENGTH) {
@@ -166,21 +158,11 @@ export class Simulation {
         if (dist < bi.radius + bj.radius) {
           const totalMass = bi.mass + bj.mass;
 
-          const vx =
-            (bi.velocity.x * bi.mass + bj.velocity.x * bj.mass) /
-            totalMass;
-          const vy =
-            (bi.velocity.y * bi.mass + bj.velocity.y * bj.mass) /
-            totalMass;
+          const vx = (bi.velocity.x * bi.mass + bj.velocity.x * bj.mass) / totalMass;
+          const vy = (bi.velocity.y * bi.mass + bj.velocity.y * bj.mass) / totalMass;
 
-          const x =
-            (bi.position.x * bi.mass +
-              bj.position.x * bj.mass) /
-            totalMass;
-          const y =
-            (bi.position.y * bi.mass +
-              bj.position.y * bj.mass) /
-            totalMass;
+          const x = (bi.position.x * bi.mass + bj.position.x * bj.mass) / totalMass;
+          const y = (bi.position.y * bi.mass + bj.position.y * bj.mass) / totalMass;
 
           const newRadius = radiusFromMass(totalMass);
 
@@ -191,13 +173,10 @@ export class Simulation {
             velocity: new Vec2(vx, vy),
             mass: totalMass,
             radius: newRadius,
-            color
+            color,
           });
 
-          mergedBody.trail =
-            bi.trail.length > bj.trail.length
-              ? [...bi.trail]
-              : [...bj.trail];
+          mergedBody.trail = bi.trail.length > bj.trail.length ? [...bi.trail] : [...bj.trail];
 
           mergedBodies.push(mergedBody);
 

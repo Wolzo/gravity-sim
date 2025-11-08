@@ -1,18 +1,18 @@
-import { Simulation } from "./core/simulation.js";
-import { MAX_DT } from "./core/config.js";
-import { Renderer } from "./render/renderer.js";
-import { initHud } from "./ui/hud.js";
-import { SEEDS, DEFAULT_SEED_KEY } from "./seeds/index.js";
-import { CreationController } from "./core/creations.js";
-import { Camera } from "./core/camera.js";
+import { Simulation } from './core/simulation.js';
+import { MAX_DT } from './core/config.js';
+import { Renderer } from './render/renderer.js';
+import { initHud } from './ui/hud.js';
+import { SEEDS, DEFAULT_SEED_KEY } from './seeds/index.js';
+import { CreationController } from './core/creations.js';
+import { Camera } from './core/camera.js';
 
-const canvas = document.getElementById("simCanvas");
+const canvas = document.getElementById('simCanvas');
 
 const simulation = new Simulation();
 const camera = new Camera();
 const renderer = new Renderer(canvas, simulation, camera);
 
-window.addEventListener("resize", () => renderer.resize());
+window.addEventListener('resize', () => renderer.resize());
 
 SEEDS[DEFAULT_SEED_KEY].apply(renderer);
 

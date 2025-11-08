@@ -1,6 +1,6 @@
-import { Body } from "../core/body.js";
-import { Vec2 } from "../core/vector2.js";
-import { radiusFromMass } from "../core/config.js";
+import { Body } from '../core/body.js';
+import { Vec2 } from '../core/vector2.js';
+import { radiusFromMass } from '../core/config.js';
 
 /**
  * Creates a simulation of the solar system with the Sun and major planets
@@ -29,24 +29,19 @@ export function seedSolarSystem(renderer) {
   const MAX_RADIUS = 26;
 
   const MAX_SEMI_MAJOR_AU = 30;
-  const DIST_SCALE =
-    (Math.min(rect.width, rect.height) * 0.4) /
-    Math.sqrt(MAX_SEMI_MAJOR_AU);
+  const DIST_SCALE = (Math.min(rect.width, rect.height) * 0.4) / Math.sqrt(MAX_SEMI_MAJOR_AU);
 
-  const G =
-    typeof simulation.G === "number"
-      ? simulation.G
-      : GRAVITY_CONSTANT;
+  const G = typeof simulation.G === 'number' ? simulation.G : GRAVITY_CONSTANT;
 
   const planets = [
-    { name: "Mercury", aAU: 0.39, massRel: 0.055, color: "#c2b28f" },
-    { name: "Venus", aAU: 0.72, massRel: 0.815, color: "#e0c896" },
-    { name: "Earth", aAU: 1.00, massRel: 1.000, color: "#6fa8ff" },
-    { name: "Mars", aAU: 1.52, massRel: 0.107, color: "#ff7043" },
-    { name: "Jupiter", aAU: 5.20, massRel: 317.8, color: "#f2d1a0" },
-    { name: "Saturn", aAU: 9.58, massRel: 95.20, color: "#f5e2b8" },
-    { name: "Uranus", aAU: 19.2, massRel: 14.50, color: "#9ad9ff" },
-    { name: "Neptune", aAU: 30.1, massRel: 17.10, color: "#5b8cff" }
+    { name: 'Mercury', aAU: 0.39, massRel: 0.055, color: '#c2b28f' },
+    { name: 'Venus', aAU: 0.72, massRel: 0.815, color: '#e0c896' },
+    { name: 'Earth', aAU: 1.0, massRel: 1.0, color: '#6fa8ff' },
+    { name: 'Mars', aAU: 1.52, massRel: 0.107, color: '#ff7043' },
+    { name: 'Jupiter', aAU: 5.2, massRel: 317.8, color: '#f2d1a0' },
+    { name: 'Saturn', aAU: 9.58, massRel: 95.2, color: '#f5e2b8' },
+    { name: 'Uranus', aAU: 19.2, massRel: 14.5, color: '#9ad9ff' },
+    { name: 'Neptune', aAU: 30.1, massRel: 17.1, color: '#5b8cff' },
   ];
 
   const sunRadiusBase = radiusFromMass(SUN_MASS) * VISUAL_RADIUS_SCALE;
@@ -58,7 +53,7 @@ export function seedSolarSystem(renderer) {
       velocity: new Vec2(0, 0),
       mass: SUN_MASS,
       radius: sunRadius,
-      color: "#ffdd88"
+      color: '#ffdd88',
     })
   );
 
@@ -85,7 +80,7 @@ export function seedSolarSystem(renderer) {
         velocity: new Vec2(vx, vy),
         mass,
         radius,
-        color: p.color
+        color: p.color,
       })
     );
   }

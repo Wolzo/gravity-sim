@@ -5,7 +5,7 @@
 export class Renderer {
   constructor(canvas, simulation, camera) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
+    this.ctx = canvas.getContext('2d');
     this.simulation = simulation;
     this.camera = camera;
     this.dpr = window.devicePixelRatio || 1;
@@ -28,7 +28,7 @@ export class Renderer {
   /**
    * Render a full frame: background + trails + bodies.
    */
-    draw() {
+  draw() {
     const { ctx, canvas, dpr, camera } = this;
 
     const width = canvas.width / dpr;
@@ -36,7 +36,7 @@ export class Renderer {
 
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = "#050816";
+    ctx.fillStyle = '#050816';
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
 
@@ -46,14 +46,7 @@ export class Renderer {
     const camX = camera?.position.x ?? 0;
     const camY = camera?.position.y ?? 0;
 
-    ctx.setTransform(
-      dpr * zoom,
-      0,
-      0,
-      dpr * zoom,
-      -camX * dpr * zoom,
-      -camY * dpr * zoom
-    );
+    ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, -camX * dpr * zoom, -camY * dpr * zoom);
 
     for (const body of this.simulation.bodies) {
       this._drawTrail(body);
@@ -68,7 +61,7 @@ export class Renderer {
 
     ctx.beginPath();
     ctx.arc(body.position.x, body.position.y, body.radius, 0, Math.PI * 2);
-    ctx.fillStyle = body.color || "#ffffff";
+    ctx.fillStyle = body.color || '#ffffff';
     ctx.fill();
   }
 
@@ -79,7 +72,7 @@ export class Renderer {
     ctx.save();
     ctx.globalAlpha = 0.5;
     ctx.lineWidth = 2;
-    ctx.strokeStyle = body.color || "#ffffff";
+    ctx.strokeStyle = body.color || '#ffffff';
 
     ctx.beginPath();
     const first = body.trail[0];

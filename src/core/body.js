@@ -1,4 +1,4 @@
-import { Vec2 } from "./vector2.js";
+import { Vec2 } from './vector2.js';
 
 /**
  * Single body in the N-body simulation
@@ -9,7 +9,7 @@ export class Body {
     velocity = new Vec2(),
     mass = 1,
     radius = 4,
-    color = "#ffffff"
+    color = '#ffffff',
   } = {}) {
     this.position = position;
     this.velocity = velocity;
@@ -28,7 +28,7 @@ export class Body {
    * Kinetic energy: 1/2 m v^2.
    */
   kineticEnergy() {
-    const v2 = (this.velocity.x * this.velocity.x) + (this.velocity.y * this.velocity.y);
+    const v2 = this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y;
     return 0.5 * this.mass * v2;
   }
 }

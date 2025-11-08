@@ -1,7 +1,6 @@
-import { Body } from "../core/body.js";
-import { Vec2 } from "../core/vector2.js";
-import { massFromRadius } from "../core/config.js";
-
+import { Body } from '../core/body.js';
+import { Vec2 } from '../core/vector2.js';
+import { massFromRadius } from '../core/config.js';
 
 /**
  * Creates a simple binary system with two equal-mass bodies
@@ -27,7 +26,7 @@ export function seedBinarySystem(renderer) {
       velocity: new Vec2(3, -3),
       mass: MASS,
       radius: RADIUS,
-      color: "#ff6f4d"
+      color: '#ff6f4d',
     })
   );
 
@@ -37,7 +36,7 @@ export function seedBinarySystem(renderer) {
       velocity: new Vec2(-3, 3),
       mass: MASS,
       radius: RADIUS,
-      color: "#4da6ff"
+      color: '#4da6ff',
     })
   );
 }

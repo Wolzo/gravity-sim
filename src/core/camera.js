@@ -1,4 +1,4 @@
-import { clamp } from "../utils/utils.js";
+import { clamp } from '../utils/utils.js';
 
 /**
  * Simple 2D camera:
@@ -6,13 +6,7 @@ import { clamp } from "../utils/utils.js";
  * - zoom     = scale factor (1 = 1 world unit = 1 screen pixel)
  */
 export class Camera {
-  constructor({
-    x = 0,
-    y = 0,
-    zoom = 1,
-    minZoom = 0.25,
-    maxZoom = 5
-  } = {}) {
+  constructor({ x = 0, y = 0, zoom = 1, minZoom = 0.25, maxZoom = 5 } = {}) {
     this.position = { x, y };
     this.zoom = zoom;
     this.minZoom = minZoom;
@@ -22,14 +16,14 @@ export class Camera {
   worldToScreen(x, y) {
     return {
       x: (x - this.position.x) * this.zoom,
-      y: (y - this.position.y) * this.zoom
+      y: (y - this.position.y) * this.zoom,
     };
   }
 
   screenToWorld(sx, sy) {
     return {
       x: sx / this.zoom + this.position.x,
-      y: sy / this.zoom + this.position.y
+      y: sy / this.zoom + this.position.y,
     };
   }
 
