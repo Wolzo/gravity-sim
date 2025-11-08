@@ -15,3 +15,24 @@ const colors = [
 export function randomColor() {
   return colors[Math.floor(Math.random() * colors.length)];
 }
+
+export function formatValue(v) {
+  if (!Number.isFinite(v)) return '—';
+
+  const abs = Math.abs(v);
+  if (abs === 0) return '0';
+
+  if (abs >= 1e4 || abs < 1e-3) {
+    return v.toExponential(2);
+  }
+
+  if (abs >= 10) {
+    return v.toFixed(1);
+  }
+
+  if (abs >= 1) {
+    return v.toFixed(2);
+  }
+
+  return v.toPrecision(3);
+}

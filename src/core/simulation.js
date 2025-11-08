@@ -154,8 +154,9 @@ export class Simulation {
         const dx = bj.position.x - bi.position.x;
         const dy = bj.position.y - bi.position.y;
         const dist = Math.hypot(dx, dy);
+        const minDist = bi.radius + bj.radius;
 
-        if (dist < bi.radius + bj.radius) {
+        if (dist < minDist) {
           const totalMass = bi.mass + bj.mass;
 
           const vx = (bi.velocity.x * bi.mass + bj.velocity.x * bj.mass) / totalMass;
@@ -166,14 +167,14 @@ export class Simulation {
 
           const newRadius = radiusFromMass(totalMass);
 
-          const color = bi.mass >= bj.mass ? bi.color : bj.color;
-
+          const dominant = bi.mass >= bj.mass ? bi : bj;
           const mergedBody = new Body({
             position: new Vec2(x, y),
             velocity: new Vec2(vx, vy),
             mass: totalMass,
             radius: newRadius,
-            color,
+            color: dominant.color,
+            name: dominant.name,
           });
 
           mergedBody.trail = bi.trail.length > bj.trail.length ? [...bi.trail] : [...bj.trail];

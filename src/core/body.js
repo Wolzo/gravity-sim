@@ -10,12 +10,14 @@ export class Body {
     mass = 1,
     radius = 4,
     color = '#ffffff',
+    name = null,
   } = {}) {
     this.position = position;
     this.velocity = velocity;
     this.mass = mass;
     this.radius = radius;
     this.color = color;
+    this.name = name;
     this.acceleration = new Vec2(0, 0);
     this.trail = [];
   }

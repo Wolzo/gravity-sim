@@ -18,7 +18,10 @@ SEEDS[DEFAULT_SEED_KEY].apply(renderer);
 
 const hud = initHud(renderer, SEEDS, DEFAULT_SEED_KEY);
 
-const creation = new CreationController(simulation, canvas, hud, camera);
+const creation = new CreationController(simulation, canvas, hud, camera, (body) => {
+  camera.setFollowTarget(body);
+  hud.setSelectedBody(body);
+});
 
 let lastTime = performance.now();
 function loop(now) {
@@ -30,6 +33,14 @@ function loop(now) {
 
   if (hud.isRunning()) {
     simulation.step(scaledDt);
+  }
+
+  if (camera.followTarget) {
+    const rect = canvas.getBoundingClientRect();
+    const zoom = camera.zoom || 1;
+
+    camera.position.x = camera.followTarget.position.x - rect.width / (2 * zoom);
+    camera.position.y = camera.followTarget.position.y - rect.height / (2 * zoom);
   }
 
   renderer.draw();

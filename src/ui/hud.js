@@ -1,3 +1,5 @@
+import { formatValue } from '../utils/utils.js';
+
 const SPEED_VALUES = [0.5, 1, 2, 5];
 
 export function initHud(renderer, seeds, defaultSeedKey) {
@@ -11,6 +13,7 @@ export function initHud(renderer, seeds, defaultSeedKey) {
   let fpsTimer = 0;
 
   let currentSeedKey = defaultSeedKey;
+  let selectedBody = null;
 
   const btnToggle = document.getElementById('btn-toggle');
   const iconToggle = document.getElementById('icon-toggle');
@@ -25,6 +28,8 @@ export function initHud(renderer, seeds, defaultSeedKey) {
 
   const seedSelect = document.getElementById('seed-select');
 
+  const tooltipEl = document.getElementById('body-tooltip');
+
   btnToggle.addEventListener('click', () => toggleRunning());
 
   btnReset.addEventListener('click', () => {
@@ -34,6 +39,8 @@ export function initHud(renderer, seeds, defaultSeedKey) {
     }
 
     simulation.collisionCount = 0;
+
+    resetFocus();
   });
 
   if (speedSlider) {
@@ -65,6 +72,10 @@ export function initHud(renderer, seeds, defaultSeedKey) {
       if (seed && typeof seed.apply === 'function') {
         seed.apply(renderer);
       }
+
+      simulation.collisionCount = 0;
+
+      resetFocus();
     });
   }
 
@@ -89,6 +100,51 @@ export function initHud(renderer, seeds, defaultSeedKey) {
     if (collisionCounter) {
       collisionCounter.textContent = simulation.collisionCount.toString();
     }
+
+    if (tooltipEl) {
+      if (selectedBody && renderer.camera) {
+        const cam = renderer.camera;
+        const canvas = renderer.canvas;
+
+        const rect = canvas.getBoundingClientRect();
+
+        const screenPos = cam.worldToScreen(selectedBody.position.x, selectedBody.position.y);
+
+        const sx = rect.left + screenPos.x;
+        const sy = rect.top + screenPos.y;
+
+        if (
+          screenPos.x < 0 ||
+          screenPos.y < 0 ||
+          screenPos.x > rect.width ||
+          screenPos.y > rect.height
+        ) {
+          tooltipEl.style.display = 'none';
+        } else {
+          tooltipEl.style.display = 'block';
+          tooltipEl.style.left = `${sx}px`;
+          tooltipEl.style.top = `${sy}px`;
+
+          const name = selectedBody.name || 'Body';
+          const mass = selectedBody.mass;
+          const vx = selectedBody.velocity.x;
+          const vy = selectedBody.velocity.y;
+          const speed = Math.sqrt(vx * vx + vy * vy);
+
+          tooltipEl.innerHTML =
+            `<strong>${name}</strong><br>` +
+            `m = ${formatValue(mass)}<br>` +
+            `|v| = ${formatValue(speed)}<br>` +
+            `K = ${formatValue(selectedBody.kineticEnergy())}`;
+        }
+      } else {
+        tooltipEl.style.display = 'none';
+      }
+    }
+  }
+
+  function setSelectedBody(body) {
+    selectedBody = body || null;
   }
 
   function toggleRunning(disableHud = false) {
@@ -106,10 +162,22 @@ export function initHud(renderer, seeds, defaultSeedKey) {
     }
   }
 
+  function resetFocus() {
+    selectedBody = null;
+    if (tooltipEl) {
+      tooltipEl.style.display = 'none';
+    }
+
+    if (renderer.camera && typeof renderer.camera.setFollowTarget === 'function') {
+      renderer.camera.setFollowTarget(null);
+    }
+  }
+
   return {
     isRunning: () => running,
     getTimeScale: () => timeScale,
     toggleRunning,
     updateHud,
+    setSelectedBody,
   };
 }

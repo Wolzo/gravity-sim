@@ -1,6 +1,6 @@
 import { Body } from '../core/body.js';
 import { Vec2 } from '../core/vector2.js';
-import { radiusFromMass } from '../core/config.js';
+import { radiusFromMass, GRAVITY_CONSTANT } from '../core/config.js';
 
 /**
  * Creates a simulation of the solar system with the Sun and major planets
@@ -9,27 +9,18 @@ import { radiusFromMass } from '../core/config.js';
  */
 export function seedSolarSystem(renderer) {
   const simulation = renderer?.simulation;
-  const canvas = renderer?.canvas;
-
-  if (!simulation || !canvas) return;
+  if (!simulation) return;
 
   simulation.clear();
 
-  const rect = canvas.getBoundingClientRect();
-  const cx = rect.width / 2;
-  const cy = rect.height / 2;
+  const EARTH_RADIUS = 30;
 
-  const EARTH_MASS_BASE = 1e-6;
+  const EARTH_MASS = Math.PI * EARTH_RADIUS * EARTH_RADIUS * 0.5;
 
-  const SUN_MASS_REL = 333000;
-  const SUN_MASS = EARTH_MASS_BASE * SUN_MASS_REL;
+  const SUN_MASS_FACTOR = 1000;
+  const SUN_MASS = EARTH_MASS * SUN_MASS_FACTOR;
 
-  const VISUAL_RADIUS_SCALE = 40;
-  const MIN_RADIUS = 2;
-  const MAX_RADIUS = 26;
-
-  const MAX_SEMI_MAJOR_AU = 30;
-  const DIST_SCALE = (Math.min(rect.width, rect.height) * 0.4) / Math.sqrt(MAX_SEMI_MAJOR_AU);
+  const ORBIT_SCALE = 3000;
 
   const G = typeof simulation.G === 'number' ? simulation.G : GRAVITY_CONSTANT;
 
@@ -44,35 +35,33 @@ export function seedSolarSystem(renderer) {
     { name: 'Neptune', aAU: 30.1, massRel: 17.1, color: '#5b8cff' },
   ];
 
-  const sunRadiusBase = radiusFromMass(SUN_MASS) * VISUAL_RADIUS_SCALE;
-  const sunRadius = Math.min(40, Math.max(10, sunRadiusBase));
+  const sunRadius = radiusFromMass(SUN_MASS);
 
   simulation.addBody(
     new Body({
-      position: new Vec2(cx, cy),
+      position: new Vec2(0, 0),
       velocity: new Vec2(0, 0),
       mass: SUN_MASS,
       radius: sunRadius,
       color: '#ffdd88',
+      name: 'Sun',
     })
   );
 
   for (const p of planets) {
-    const distance = Math.sqrt(p.aAU) * DIST_SCALE;
+    const distance = p.aAU * ORBIT_SCALE;
 
     const angle = Math.random() * Math.PI * 2;
-
-    const x = cx + distance * Math.cos(angle);
-    const y = cy + distance * Math.sin(angle);
+    const x = distance * Math.cos(angle);
+    const y = distance * Math.sin(angle);
 
     const orbitalSpeed = Math.sqrt((G * SUN_MASS) / distance);
     const vx = -orbitalSpeed * Math.sin(angle);
     const vy = orbitalSpeed * Math.cos(angle);
 
-    const mass = EARTH_MASS_BASE * p.massRel;
+    const mass = EARTH_MASS * p.massRel;
 
-    const radiusBase = radiusFromMass(mass) * VISUAL_RADIUS_SCALE;
-    const radius = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, radiusBase));
+    const radius = radiusFromMass(mass);
 
     simulation.addBody(
       new Body({
@@ -81,6 +70,7 @@ export function seedSolarSystem(renderer) {
         mass,
         radius,
         color: p.color,
+        name: p.name,
       })
     );
   }

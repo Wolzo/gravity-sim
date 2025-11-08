@@ -6,11 +6,12 @@ import { clamp } from '../utils/utils.js';
  * - zoom     = scale factor (1 = 1 world unit = 1 screen pixel)
  */
 export class Camera {
-  constructor({ x = 0, y = 0, zoom = 1, minZoom = 0.25, maxZoom = 5 } = {}) {
+  constructor({ x = 0, y = 0, zoom = 1, minZoom = 0.02, maxZoom = 5 } = {}) {
     this.position = { x, y };
     this.zoom = zoom;
     this.minZoom = minZoom;
     this.maxZoom = maxZoom;
+    this.followTarget = null;
   }
 
   worldToScreen(x, y) {
@@ -42,5 +43,9 @@ export class Camera {
 
     this.position.x += before.x - after.x;
     this.position.y += before.y - after.y;
+  }
+
+  setFollowTarget(body) {
+    this.followTarget = body || null;
   }
 }

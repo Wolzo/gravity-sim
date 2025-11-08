@@ -2,6 +2,7 @@ import { Vec2 } from './vector2.js';
 import { Body } from './body.js';
 import { massFromRadius } from './config.js';
 import { clamp, randomColor } from '../utils/utils.js';
+import { generateRandomName } from '../utils/names.js';
 
 const CREATION_STATES = {
   IDLE: 'IDLE',
@@ -10,7 +11,7 @@ const CREATION_STATES = {
 };
 
 export class CreationController {
-  constructor(simulation, canvas, hud, camera) {
+  constructor(simulation, canvas, hud, camera, onBodySelected) {
     this.simulation = simulation;
     this.canvas = canvas;
     this.hud = hud;
@@ -21,6 +22,8 @@ export class CreationController {
     this.radius = 0;
     this.lastMouse = null;
     this.velocityScale = 0.05;
+
+    this.onBodySelected = onBodySelected;
 
     this.hudElement = document.getElementById('hud');
 
@@ -89,6 +92,19 @@ export class CreationController {
     if (event.button !== 0) return;
 
     const pos = this._getMousePos(event);
+
+    if (this.mode === CREATION_STATES.IDLE) {
+      const hit = this._pickBody(pos);
+      if (hit) {
+        if (typeof this.onBodySelected === 'function') {
+          this.onBodySelected(hit);
+        }
+
+        return;
+      } else if (typeof this.onBodySelected === 'function') {
+        this.onBodySelected(null);
+      }
+    }
 
     switch (this.mode) {
       case CREATION_STATES.IDLE:
@@ -190,6 +206,7 @@ export class CreationController {
       mass,
       radius: this.radius,
       color: randomColor(),
+      name: generateRandomName(),
     });
 
     this.simulation.addBody(body);
@@ -201,6 +218,20 @@ export class CreationController {
     this.radius = 0;
     this.lastMouse = null;
     this.hud.toggleRunning(false);
+  }
+
+  _pickBody(pos) {
+    const bodies = this.simulation.bodies;
+    for (let i = bodies.length - 1; i >= 0; i--) {
+      const b = bodies[i];
+      const dx = pos.x - b.position.x;
+      const dy = pos.y - b.position.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= b.radius) {
+        return b;
+      }
+    }
+    return null;
   }
 
   drawPreview() {
