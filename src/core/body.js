@@ -1,8 +1,5 @@
 import { Vec2 } from './vector2.js';
 
-/**
- * Single body in the N-body simulation
- */
 export class Body {
   constructor({
     position = new Vec2(),
@@ -22,6 +19,10 @@ export class Body {
     this.trail = [];
   }
 
+  /**
+   * Sets the accumulated acceleration to zero for the next force computation step.
+   * Must be called before computing gravitational forces.
+   */
   resetAcceleration() {
     this.acceleration.set(0, 0);
   }

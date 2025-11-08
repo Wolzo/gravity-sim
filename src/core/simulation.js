@@ -6,7 +6,7 @@ import { radiusFromMass } from './config.js';
 
 /**
  * Core N-body gravity simulation.
- * Holds bodies, applies gravity, integrates motion, merges collisions.
+ * Holds bodies, applies gravity, integrates motion, and merges collisions.
  */
 export class Simulation {
   constructor({ G = GRAVITY_CONSTANT, softening = SOFTENING } = {}) {
@@ -28,7 +28,11 @@ export class Simulation {
   }
 
   /**
-   * Advance the simulation by dt seconds.
+   * Advance the simulation by dt seconds:
+   * - computes gravitational forces
+   * - integrates motion
+   * - resolves collisions
+   * - updates the internal time accumulator.
    */
   step(dt) {
     if (!Number.isFinite(dt) || dt <= 0) return;

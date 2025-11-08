@@ -14,6 +14,10 @@ export class Camera {
     this.followTarget = null;
   }
 
+  /**
+   * Converts a world-space point into screen-space coordinates (in CSS pixels),
+   * taking the camera position and zoom into account.
+   */
   worldToScreen(x, y) {
     return {
       x: (x - this.position.x) * this.zoom,
@@ -21,6 +25,10 @@ export class Camera {
     };
   }
 
+  /**
+   * Converts screen-space coordinates (CSS pixels relative to the canvas)
+   * back into world-space coordinates.
+   */
   screenToWorld(sx, sy) {
     return {
       x: sx / this.zoom + this.position.x,
@@ -28,6 +36,10 @@ export class Camera {
     };
   }
 
+  /**
+   * Changes the zoom level around a given screen-space point.
+   * Keeps the world point under (sx, sy) fixed in place while zooming.
+   */
   zoomAt(sx, sy, factor) {
     const oldZoom = this.zoom;
     let newZoom = oldZoom * factor;
@@ -45,6 +57,10 @@ export class Camera {
     this.position.y += before.y - after.y;
   }
 
+  /**
+   * Tells the camera to follow the given body.
+   * Pass `null` to stop following any body.
+   */
   setFollowTarget(body) {
     this.followTarget = body || null;
   }

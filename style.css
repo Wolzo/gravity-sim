@@ -146,6 +146,6 @@ canvas {
   font-size: 11px;
   line-height: 1.3;
   pointer-events: none;
-  transform: translate(12px, -24px);
+  transform: translate(20px, -50px);
   white-space: nowrap;
 }

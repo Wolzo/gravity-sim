@@ -10,6 +10,12 @@ const CREATION_STATES = {
   VELOCITY: 'VELOCITY',
 };
 
+/**
+ * Handles interactive body creation on the canvas:
+ * - click & drag to set radius and initial velocity
+ * - right-click to cancel or pan the camera
+ * - notifies the HUD when a body is selected.
+ */
 export class CreationController {
   constructor(simulation, canvas, hud, camera, onBodySelected) {
     this.simulation = simulation;
@@ -24,6 +30,7 @@ export class CreationController {
     this.velocityScale = 0.05;
 
     this.onBodySelected = onBodySelected;
+    this.selectedBody = null;
 
     this.hudElement = document.getElementById('hud');
 
@@ -35,6 +42,8 @@ export class CreationController {
     this.isPanning = false;
     this.lastPanScreen = null;
 
+    this.wasRunningBeforeCreation = null;
+
     this._onMouseDown = this._onMouseDown.bind(this);
     this._onMouseMove = this._onMouseMove.bind(this);
     this._onMouseUp = this._onMouseUp.bind(this);
@@ -44,6 +53,10 @@ export class CreationController {
     this._attachEventListeners();
   }
 
+  /**
+   * Returns true if the mouse event is currently over the HUD,
+   * in which case canvas interactions should be ignored.
+   */
   _isInHud(event) {
     if (!this.hudElement) return false;
 
@@ -71,15 +84,37 @@ export class CreationController {
     window.removeEventListener('keydown', this._onKeyDown);
   }
 
+  /**
+   * Main mouse down handler:
+   * - right button:
+   *     - if a body is selected and click is on empty space -> deselect it
+   *     - otherwise pan the camera or cancel the current creation
+   * - left button when idle:
+   *     - if click hits a body -> select it
+   *     - if click is on empty space and a body is selected -> deselect it
+   *     - if click is on empty space and no body is selected -> start new body creation
+   * - left button during creation:
+   *     advance the creation state machine (center -> radius -> velocity -> spawn body)
+   */
   _onMouseDown(event) {
     if (this._isInHud(event)) {
       this._reset();
+      this._setSelectedBody(null);
       return;
     }
 
     if (event.target !== this.canvas) return;
 
+    const pos = this._getMousePos(event);
+    const hit = this._pickBody(pos);
+
     if (event.button === 2) {
+      if (!hit && this.selectedBody) {
+        this._setSelectedBody(null);
+        this._reset();
+        return;
+      }
+
       if (this.mode !== CREATION_STATES.IDLE) {
         this._reset();
       } else {
@@ -91,29 +126,34 @@ export class CreationController {
 
     if (event.button !== 0) return;
 
-    const pos = this._getMousePos(event);
-
     if (this.mode === CREATION_STATES.IDLE) {
-      const hit = this._pickBody(pos);
       if (hit) {
-        if (typeof this.onBodySelected === 'function') {
-          this.onBodySelected(hit);
-        }
-
+        this._setSelectedBody(hit);
         return;
-      } else if (typeof this.onBodySelected === 'function') {
-        this.onBodySelected(null);
       }
+
+      if (this.selectedBody) {
+        this._setSelectedBody(null);
+        return;
+      }
+
+      this.wasRunningBeforeCreation =
+        typeof this.hud.isRunning === 'function' ? this.hud.isRunning() : true;
+
+      if (this.wasRunningBeforeCreation && typeof this.hud.setRunning === 'function') {
+        this.hud.setRunning(false);
+      }
+
+      if (typeof this.hud.setHudDisabled === 'function') {
+        this.hud.setHudDisabled(true);
+      }
+
+      this.mode = CREATION_STATES.RADIUS;
+      this.center = pos;
+      return;
     }
 
     switch (this.mode) {
-      case CREATION_STATES.IDLE:
-        this.hud.toggleRunning(true);
-
-        this.mode = CREATION_STATES.RADIUS;
-        this.center = pos;
-        break;
-
       case CREATION_STATES.RADIUS:
         this.mode = CREATION_STATES.VELOCITY;
         break;
@@ -125,6 +165,11 @@ export class CreationController {
     }
   }
 
+  /**
+   * Mouse move handler:
+   * - when panning: moves the camera in world space
+   * - when sizing: updates the radius preview for the new body.
+   */
   _onMouseMove(event) {
     if (this.isPanning && this.lastPanScreen) {
       const dxScreen = event.clientX - this.lastPanScreen.x;
@@ -149,6 +194,10 @@ export class CreationController {
     }
   }
 
+  /**
+   * Mouse up handler:
+   * stops panning when the right button is released.
+   */
   _onMouseUp(event) {
     if (event.button === 2) {
       this.isPanning = false;
@@ -156,6 +205,10 @@ export class CreationController {
     }
   }
 
+  /**
+   * Mouse wheel handler:
+   * zooms the camera in or out around the cursor position.
+   */
   _onWheel(event) {
     event.preventDefault();
 
@@ -169,12 +222,20 @@ export class CreationController {
     this.camera.zoomAt(sx, sy, zoomFactor);
   }
 
+  /**
+   * Keyboard handler:
+   * ESC cancels the current creation and returns to the idle state.
+   */
   _onKeyDown(event) {
     if (event.key === 'Escape' && this.mode !== CREATION_STATES.IDLE) {
       this._reset();
     }
   }
 
+  /**
+   * Converts the mouse event position from screen space (CSS pixels)
+   * into world coordinates using the active camera.
+   */
   _getMousePos(event) {
     const rect = this.canvas.getBoundingClientRect();
     const sx = event.clientX - rect.left;
@@ -193,6 +254,21 @@ export class CreationController {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
+  _setSelectedBody(body) {
+    this.selectedBody = body || null;
+
+    if (typeof this.onBodySelected === 'function') {
+      this.onBodySelected(this.selectedBody);
+    }
+  }
+
+  /**
+   * Finalizes the creation of a body:
+   * - computes initial velocity from the drag vector
+   * - derives mass from the chosen radius
+   * - assigns a random color and generated name
+   * - adds the body to the simulation.
+   */
   _finalizeBody(pos) {
     const velocity = {
       x: (pos.x - this.center.x) * this.velocityScale,
@@ -212,14 +288,36 @@ export class CreationController {
     this.simulation.addBody(body);
   }
 
+  /**
+   * Resets the creation state back to idle and unpauses the simulation.
+   */
   _reset() {
     this.mode = CREATION_STATES.IDLE;
     this.center = null;
     this.radius = 0;
     this.lastMouse = null;
-    this.hud.toggleRunning(false);
+
+    if (this.hud && typeof this.hud.setHudDisabled === 'function') {
+      this.hud.setHudDisabled(false);
+    }
+
+    if (this.wasRunningBeforeCreation !== null) {
+      if (
+        this.wasRunningBeforeCreation &&
+        typeof this.hud.isRunning === 'function' &&
+        typeof this.hud.setRunning === 'function' &&
+        !this.hud.isRunning()
+      ) {
+        this.hud.setRunning(true);
+      }
+      this.wasRunningBeforeCreation = null;
+    }
   }
 
+  /**
+   * Performs a simple hit-test in world space to find the topmost body
+   * under the given position, or `null` if none is found.
+   */
   _pickBody(pos) {
     const bodies = this.simulation.bodies;
     for (let i = bodies.length - 1; i >= 0; i--) {
@@ -234,6 +332,11 @@ export class CreationController {
     return null;
   }
 
+  /**
+   * Renders the interactive preview on top of the canvas:
+   * - a circle for the body radius
+   * - an arrow for the initial velocity vector (if in velocity mode).
+   */
   drawPreview() {
     const canvas = this.canvas;
     const ctx = canvas.getContext('2d');

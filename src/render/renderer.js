@@ -13,7 +13,8 @@ export class Renderer {
   }
 
   /**
-   * Resize backing buffer to match CSS size * DPR.
+   * Resize the backing canvas buffer to match its CSS size multiplied by DPR.
+   * Must be called on window resize for crisp rendering.
    */
   resize() {
     const rect = this.canvas.getBoundingClientRect();
@@ -26,7 +27,10 @@ export class Renderer {
   }
 
   /**
-   * Render a full frame: background + trails + bodies.
+   * Render a full frame:
+   * - clears the screen
+   * - applies the camera transform (position + zoom)
+   * - draws all trails and bodies in world space.
    */
   draw() {
     const { ctx, canvas, dpr, camera } = this;

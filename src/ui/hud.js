@@ -2,6 +2,14 @@ import { formatValue } from '../utils/utils.js';
 
 const SPEED_VALUES = [0.5, 1, 2, 5];
 
+/**
+ * Sets up the HUD (controls + overlay info) for a given renderer and set of seeds:
+ * - play / pause toggle
+ * - reset current seed
+ * - time-scale (speed) slider
+ * - seed selector
+ * - small tooltip that shows info about the currently selected body.
+ */
 export function initHud(renderer, seeds, defaultSeedKey) {
   const simulation = renderer.simulation;
 
@@ -79,6 +87,13 @@ export function initHud(renderer, seeds, defaultSeedKey) {
     });
   }
 
+  /**
+   * Updates HUD state from the current simulation frame:
+   * - FPS counter
+   * - body count
+   * - collision count
+   * - position and content of the body tooltip (if a body is selected).
+   */
   function updateHud(rawDt) {
     frameCount++;
     fpsTimer += rawDt;
@@ -143,25 +158,46 @@ export function initHud(renderer, seeds, defaultSeedKey) {
     }
   }
 
+  /**
+   * Sets the currently selected body, whose info is shown in the tooltip.
+   * Pass `null` to clear the selection.
+   */
   function setSelectedBody(body) {
     selectedBody = body || null;
   }
 
-  function toggleRunning(disableHud = false) {
-    running = !running;
+  /**
+   * Toggles the simulation running state and optionally disables HUD controls
+   * while the user is interacting (e.g. during body creation).
+   */
+  function setHudDisabled(disabled) {
+    btnToggle.disabled = disabled;
+    btnReset.disabled = disabled;
+    speedSlider.disabled = disabled;
+    seedSelect.disabled = disabled;
+  }
 
-    btnToggle.disabled = disableHud;
-    btnReset.disabled = disableHud;
-    speedSlider.disabled = disableHud;
-    seedSelect.disabled = disableHud;
+  function setRunning(value) {
+    running = value;
 
     if (running) {
+      // pause icon
       iconToggle.setAttribute('d', 'M6 19h4V5H6zm8-14v14h4V5h-4z');
     } else {
+      // play icon
       iconToggle.setAttribute('d', 'M8 5v14l11-7z');
     }
   }
 
+  function toggleRunning() {
+    setRunning(!running);
+  }
+
+  /**
+   * Clears the current focus/selection:
+   * - hides the tooltip
+   * - stops the camera from following any body.
+   */
   function resetFocus() {
     selectedBody = null;
     if (tooltipEl) {
@@ -177,6 +213,8 @@ export function initHud(renderer, seeds, defaultSeedKey) {
     isRunning: () => running,
     getTimeScale: () => timeScale,
     toggleRunning,
+    setRunning,
+    setHudDisabled,
     updateHud,
     setSelectedBody,
   };

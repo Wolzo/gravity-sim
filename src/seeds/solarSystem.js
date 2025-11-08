@@ -1,11 +1,15 @@
 import { Body } from '../core/body.js';
 import { Vec2 } from '../core/vector2.js';
 import { radiusFromMass, GRAVITY_CONSTANT } from '../core/config.js';
+import { configureCameraForSeed } from '../utils/utils.js';
 
 /**
- * Creates a simulation of the solar system with the Sun and major planets
- * The system is centered on the canvas.
- * Masses and distances are scaled for better visualization and to avoid collisions.
+ * Initializes a semi-realistic solar system:
+ * - Sun at the origin
+ * - planet distances scaled from their semi-major axes in AU
+ * - masses proportional to real mass ratios
+ * - radius derived from mass using the same mass–radius law as user-created bodies.
+ * Uses the simulation's G to compute circular orbital velocities.
  */
 export function seedSolarSystem(renderer) {
   const simulation = renderer?.simulation;
@@ -74,4 +78,9 @@ export function seedSolarSystem(renderer) {
       })
     );
   }
+
+  configureCameraForSeed(renderer, {
+    center: new Vec2(0, 0),
+    zoom: 0.15,
+  });
 }

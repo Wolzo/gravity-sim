@@ -8,6 +8,13 @@ import { Camera } from './core/camera.js';
 
 const canvas = document.getElementById('simCanvas');
 
+/**
+ * Entry point:
+ * - creates simulation, camera, renderer, HUD and creation controller
+ * - applies the default seed
+ * - starts the main loop.
+ */
+
 const simulation = new Simulation();
 const camera = new Camera();
 const renderer = new Renderer(canvas, simulation, camera);
@@ -23,6 +30,14 @@ const creation = new CreationController(simulation, canvas, hud, camera, (body) 
   hud.setSelectedBody(body);
 });
 
+/**
+ * Main animation loop:
+ * - computes delta time with a safety cap (MAX_DT)
+ * - steps the simulation if running
+ * - updates camera follow
+ * - renders the scene
+ * - updates the HUD.
+ */
 let lastTime = performance.now();
 function loop(now) {
   const rawDt = (now - lastTime) / 1000;

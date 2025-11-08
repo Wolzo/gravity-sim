@@ -1,6 +1,6 @@
 /**
- * Genera un nome pseudo-stellare o planetario.
- * Può restituire nomi tipo:
+ * Generates a pseudo-stellar / planetary name.
+ * Can produce names such as:
  *  - "HD-2374"
  *  - "ZK-91"
  *  - "Epsilon Tauri"
