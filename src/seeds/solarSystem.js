@@ -39,14 +39,14 @@ export function seedSolarSystem(renderer) {
       : GRAVITY_CONSTANT;
 
   const planets = [
-    { name: "Mercury", aAU: 0.39, massRel: 0.055,  color: "#c2b28f" },
-    { name: "Venus",   aAU: 0.72, massRel: 0.815,  color: "#e0c896" },
-    { name: "Earth",   aAU: 1.00, massRel: 1.000,  color: "#6fa8ff" },
-    { name: "Mars",    aAU: 1.52, massRel: 0.107,  color: "#ff7043" },
-    { name: "Jupiter", aAU: 5.20, massRel: 317.8,  color: "#f2d1a0" },
-    { name: "Saturn",  aAU: 9.58, massRel: 95.20,  color: "#f5e2b8" },
-    { name: "Uranus",  aAU: 19.2, massRel: 14.50,  color: "#9ad9ff" },
-    { name: "Neptune", aAU: 30.1, massRel: 17.10,  color: "#5b8cff" }
+    { name: "Mercury", aAU: 0.39, massRel: 0.055, color: "#c2b28f" },
+    { name: "Venus", aAU: 0.72, massRel: 0.815, color: "#e0c896" },
+    { name: "Earth", aAU: 1.00, massRel: 1.000, color: "#6fa8ff" },
+    { name: "Mars", aAU: 1.52, massRel: 0.107, color: "#ff7043" },
+    { name: "Jupiter", aAU: 5.20, massRel: 317.8, color: "#f2d1a0" },
+    { name: "Saturn", aAU: 9.58, massRel: 95.20, color: "#f5e2b8" },
+    { name: "Uranus", aAU: 19.2, massRel: 14.50, color: "#9ad9ff" },
+    { name: "Neptune", aAU: 30.1, massRel: 17.10, color: "#5b8cff" }
   ];
 
   const sunRadiusBase = radiusFromMass(SUN_MASS) * VISUAL_RADIUS_SCALE;
@@ -72,7 +72,7 @@ export function seedSolarSystem(renderer) {
 
     const orbitalSpeed = Math.sqrt((G * SUN_MASS) / distance);
     const vx = -orbitalSpeed * Math.sin(angle);
-    const vy =  orbitalSpeed * Math.cos(angle);
+    const vy = orbitalSpeed * Math.cos(angle);
 
     const mass = EARTH_MASS_BASE * p.massRel;
 
