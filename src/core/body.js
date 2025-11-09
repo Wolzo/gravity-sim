@@ -1,4 +1,6 @@
 import { Vec2 } from './vector2.js';
+import { generateRandomName } from '../utils/names.js';
+import { colorForBody } from '../utils/colors.js';
 
 export class Body {
   constructor({
@@ -6,15 +8,15 @@ export class Body {
     velocity = new Vec2(),
     mass = 1,
     radius = 4,
-    color = '#ffffff',
+    color = null,
     name = null,
   } = {}) {
     this.position = position;
     this.velocity = velocity;
     this.mass = mass;
     this.radius = radius;
-    this.color = color;
-    this.name = name;
+    this.color = color == null ? colorForBody({ mass, velocity }) : color;
+    this.name = name == null ? generateRandomName() : name;
     this.acceleration = new Vec2(0, 0);
     this.trail = [];
   }

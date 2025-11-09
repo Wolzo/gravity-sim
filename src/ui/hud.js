@@ -67,6 +67,8 @@ export function initHud(renderer, seeds, defaultSeedKey) {
     seedSelect.innerHTML = '';
 
     Object.entries(seeds).forEach(([key, cfg]) => {
+      if (cfg.enabled === false) return;
+
       const opt = document.createElement('option');
       opt.value = key;
       opt.textContent = cfg.label ?? key;

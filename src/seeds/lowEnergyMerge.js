@@ -1,8 +1,7 @@
 import { Body } from '../core/body.js';
 import { Vec2 } from '../core/vector2.js';
 import { massFromRadius } from '../core/config.js';
-import { generateRandomName } from '../utils/names.js';
-import { randomColor, configureCameraForSeed } from '../utils/utils.js';
+import { configureCameraForSeed } from '../utils/utils.js';
 
 /**
  * Two equal-mass bodies on a head-on collision with low relative speed.
@@ -26,8 +25,6 @@ export function seedLowEnergyMerge(renderer) {
       velocity: new Vec2(speed, 0),
       mass: MASS,
       radius: RADIUS,
-      color: randomColor(),
-      name: generateRandomName(),
     })
   );
 
@@ -37,8 +34,6 @@ export function seedLowEnergyMerge(renderer) {
       velocity: new Vec2(-speed, 0),
       mass: MASS,
       radius: RADIUS,
-      color: randomColor(),
-      name: generateRandomName(),
     })
   );
 

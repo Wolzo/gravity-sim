@@ -1,8 +1,7 @@
 import { Body } from '../core/body.js';
 import { Vec2 } from '../core/vector2.js';
 import { massFromRadius, GRAVITY_CONSTANT } from '../core/config.js';
-import { generateRandomName } from '../utils/names.js';
-import { randomColor, configureCameraForSeed } from '../utils/utils.js';
+import { configureCameraForSeed } from '../utils/utils.js';
 
 /**
  * Initializes a simple binary system:
@@ -33,8 +32,6 @@ export function seedBinarySystem(renderer) {
       velocity: new Vec2(0, orbitalSpeed),
       mass: MASS,
       radius: RADIUS,
-      color: randomColor(),
-      name: generateRandomName(),
     })
   );
 
@@ -44,8 +41,6 @@ export function seedBinarySystem(renderer) {
       velocity: new Vec2(0, -orbitalSpeed),
       mass: MASS,
       radius: RADIUS,
-      color: randomColor(),
-      name: generateRandomName(),
     })
   );
 

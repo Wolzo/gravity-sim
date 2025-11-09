@@ -1,8 +1,7 @@
 import { Vec2 } from './vector2.js';
 import { Body } from './body.js';
 import { massFromRadius } from './config.js';
-import { clamp, randomColor } from '../utils/utils.js';
-import { generateRandomName } from '../utils/names.js';
+import { clamp } from '../utils/utils.js';
 
 const CREATION_STATES = {
   IDLE: 'IDLE',
@@ -354,8 +353,6 @@ export class CreationController {
       velocity: new Vec2(velocity.x, velocity.y),
       mass,
       radius: this.radius,
-      color: randomColor(),
-      name: generateRandomName(),
     });
 
     this.simulation.addBody(body);

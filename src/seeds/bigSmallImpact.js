@@ -1,8 +1,7 @@
 import { Body } from '../core/body.js';
 import { Vec2 } from '../core/vector2.js';
 import { massFromRadius } from '../core/config.js';
-import { generateRandomName } from '../utils/names.js';
-import { randomColor, configureCameraForSeed } from '../utils/utils.js';
+import { configureCameraForSeed } from '../utils/utils.js';
 
 /**
  * High-energy impact between a massive body and a much smaller projectile.
@@ -31,7 +30,6 @@ export function seedBigSmallImpact(renderer) {
       mass: BIG_MASS,
       radius: BIG_RADIUS,
       color: '#ffaa00',
-      name: generateRandomName(),
     })
   );
 
@@ -43,7 +41,6 @@ export function seedBigSmallImpact(renderer) {
       mass: SMALL_MASS,
       radius: SMALL_RADIUS,
       color: '#00ccff',
-      name: generateRandomName(),
     })
   );
 
