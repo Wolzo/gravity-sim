@@ -30,6 +30,7 @@ export function initHud(renderer, seeds, defaultSeedKey) {
   const fpsCounter = document.getElementById('fps-counter');
   const bodiesCounter = document.getElementById('bodies-counter');
   const collisionCounter = document.getElementById('collisions-counter');
+  const cameraPosition = document.getElementById('camera-position');
 
   const speedSlider = document.getElementById('speed-slider');
   const hudSpeedValue = document.getElementById('hud-speed-value');
@@ -98,6 +99,10 @@ export function initHud(renderer, seeds, defaultSeedKey) {
 
     if (collisionCounter) {
       collisionCounter.textContent = simulation.collisionCount.toString();
+    }
+
+    if (cameraPosition) {
+      cameraPosition.textContent = renderer.camera.getCameraPositionString();
     }
 
     if (tooltipEl) {

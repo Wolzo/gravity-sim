@@ -69,4 +69,8 @@ export class Camera {
   setFollowTarget(body) {
     this.followTarget = body || null;
   }
+
+  getCameraPositionString() {
+    return `x: ${this.position.x.toFixed(2)} y: ${this.position.y.toFixed(2)} zoom: ${this.zoom.toFixed(2)}`;
+  }
 }

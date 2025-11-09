@@ -50,6 +50,16 @@ canvas {
   align-items: center;
 }
 
+#hud .hud-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  font-size: 13px;
+  font-family: monospace;
+  opacity: 0.9;
+}
+
 #hud button {
   background: none;
   border: none;
