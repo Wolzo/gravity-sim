@@ -71,17 +71,26 @@ export class Renderer {
   _drawBody(body, zoom, isSelected = false) {
     const { ctx } = this;
 
-    ctx.beginPath();
-    ctx.arc(body.position.x, body.position.y, body.radius, 0, Math.PI * 2);
+    const x = body.position.x;
+    const y = body.position.y;
+    const radius = body.radius;
+
     ctx.fillStyle = body.color || '#ffffff';
-    ctx.fill();
+
+    if (body.isDebris && body.shape) {
+      this._drawDebrisShape(ctx, body, x, y, radius);
+    } else {
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     if (isSelected) {
       ctx.save();
       ctx.lineWidth = 2 / zoom;
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
       ctx.beginPath();
-      ctx.arc(body.position.x, body.position.y, body.radius, 0, Math.PI * 2);
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -106,6 +115,47 @@ export class Renderer {
     }
 
     ctx.stroke();
+    ctx.restore();
+  }
+
+  _drawDebrisShape(ctx, body, x, y, radius) {
+    const shape = body.shape || {};
+
+    const sidesRaw = shape.sides != null ? shape.sides : 6;
+    const sides = Math.max(3, sidesRaw | 0);
+
+    const angle = shape.angle || 0;
+
+    const vertexJitter =
+      Array.isArray(shape.vertexJitter) && shape.vertexJitter.length > 0
+        ? shape.vertexJitter
+        : null;
+
+    const rx = radius;
+    const ry = radius;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+
+    ctx.beginPath();
+    for (let i = 0; i < sides; i++) {
+      const t = (i / sides) * Math.PI * 2;
+
+      const jitter = vertexJitter ? vertexJitter[i % vertexJitter.length] : 1.0;
+
+      const px = Math.cos(t) * rx * jitter;
+      const py = Math.sin(t) * ry * jitter;
+
+      if (i === 0) {
+        ctx.moveTo(px, py);
+      } else {
+        ctx.lineTo(px, py);
+      }
+    }
+    ctx.closePath();
+    ctx.fill();
+
     ctx.restore();
   }
 }

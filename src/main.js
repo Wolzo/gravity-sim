@@ -19,6 +19,12 @@ const simulation = new Simulation();
 const camera = new Camera();
 const renderer = new Renderer(canvas, simulation, camera);
 
+if (typeof window !== 'undefined') {
+  window.simulation = simulation;
+  window.renderer = renderer;
+  window.camera = camera;
+}
+
 window.addEventListener('resize', () => renderer.resize());
 
 SEEDS[DEFAULT_SEED_KEY].apply(renderer);
