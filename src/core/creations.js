@@ -104,8 +104,6 @@ export class CreationController {
    */
   _onMouseDown(event) {
     if (this._isInHud(event)) {
-      this._reset();
-      this._setSelectedBody(null);
       return;
     }
 
@@ -240,8 +238,10 @@ export class CreationController {
    * ESC cancels the current creation and returns to the idle state.
    */
   _onKeyDown(event) {
-    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')
+    const activeTag = document.activeElement?.tagName;
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
       return;
+    }
 
     const rect = this.canvas.getBoundingClientRect();
     const sxCenter = rect.width / 2;

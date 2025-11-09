@@ -50,8 +50,7 @@ function loop(now) {
   const rawDt = (now - lastTime) / 1000;
   lastTime = now;
 
-  const dt = Math.min(rawDt, MAX_DT);
-  const scaledDt = dt * hud.getTimeScale();
+  const scaledDt = Math.min(rawDt * hud.getTimeScale(), MAX_DT);
 
   if (hud.isRunning()) {
     simulation.step(scaledDt);

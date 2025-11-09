@@ -1,11 +1,10 @@
 {
   "name": "gravity-sim",
   "version": "1.0.0",
-  "description": "",
+  "description": "A simple gravity simulator built with JavaScript and HTML5 Canvas.",
   "main": "index.js",
   "scripts": {
-    "start": "live-server --port=8080 --open=index.html",
-    "docs": "jsdoc -c jsdoc.config.json"
+    "start": "live-server --port=8080 --open=index.html"
   },
   "repository": {
     "type": "git",
@@ -20,7 +19,6 @@
   },
   "homepage": "https://github.com/Wolzo/gravity-sim#readme",
   "devDependencies": {
-    "jsdoc": "^4.0.5",
     "live-server": "^1.2.2",
     "prettier": "^3.6.2"
   }

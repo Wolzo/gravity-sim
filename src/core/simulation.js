@@ -28,7 +28,12 @@ export class Simulation {
   // ---- Public API ---------------------------------------------------------
 
   addBody(body) {
+    if (this.bodies.length >= MAX_BODIES) {
+      return false;
+    }
+
     this.bodies.push(body);
+    return true;
   }
 
   removeBody(body) {
@@ -36,7 +41,6 @@ export class Simulation {
     if (index === -1) return false;
 
     if (body.trail) body.trail.length = 0;
-    if (this.followTarget === body) this.followTarget = null;
 
     this.bodies.splice(index, 1);
     return true;

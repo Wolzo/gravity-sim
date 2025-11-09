@@ -39,6 +39,15 @@ export function initHud(renderer, seeds, defaultSeedKey) {
 
   const tooltipEl = document.getElementById('body-tooltip');
 
+  if (speedSlider) {
+    const idx = Number(speedSlider.value) || 0;
+    timeScale = SPEED_VALUES[idx] ?? timeScale;
+  }
+
+  if (hudSpeedValue) {
+    hudSpeedValue.textContent = timeScale.toString();
+  }
+
   btnToggle.addEventListener('click', () => toggleRunning());
 
   btnReset.addEventListener('click', () => resetSim());
