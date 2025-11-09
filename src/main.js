@@ -28,6 +28,7 @@ const hud = initHud(renderer, SEEDS, DEFAULT_SEED_KEY);
 const creation = new CreationController(simulation, canvas, hud, camera, (body) => {
   camera.setFollowTarget(body);
   hud.setSelectedBody(body);
+  renderer.setSelectedBody(body);
 });
 
 /**

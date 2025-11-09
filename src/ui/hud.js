@@ -46,8 +46,6 @@ export function initHud(renderer, seeds, defaultSeedKey) {
       seed.apply(renderer);
     }
 
-    simulation.collisionCount = 0;
-
     resetFocus();
   });
 
@@ -80,8 +78,6 @@ export function initHud(renderer, seeds, defaultSeedKey) {
       if (seed && typeof seed.apply === 'function') {
         seed.apply(renderer);
       }
-
-      simulation.collisionCount = 0;
 
       resetFocus();
     });
@@ -181,10 +177,8 @@ export function initHud(renderer, seeds, defaultSeedKey) {
     running = value;
 
     if (running) {
-      // pause icon
       iconToggle.setAttribute('d', 'M6 19h4V5H6zm8-14v14h4V5h-4z');
     } else {
-      // play icon
       iconToggle.setAttribute('d', 'M8 5v14l11-7z');
     }
   }

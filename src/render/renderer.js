@@ -9,7 +9,12 @@ export class Renderer {
     this.simulation = simulation;
     this.camera = camera;
     this.dpr = window.devicePixelRatio || 1;
+    this.selectedBody = null;
     this.resize();
+  }
+
+  setSelectedBody(body) {
+    this.selectedBody = body || null;
   }
 
   /**
@@ -54,19 +59,29 @@ export class Renderer {
 
     for (const body of this.simulation.bodies) {
       this._drawTrail(body);
-      this._drawBody(body);
+      this._drawBody(body, body === this.selectedBody);
     }
 
     ctx.restore();
   }
 
-  _drawBody(body) {
+  _drawBody(body, isSelected = false) {
     const { ctx } = this;
 
     ctx.beginPath();
     ctx.arc(body.position.x, body.position.y, body.radius, 0, Math.PI * 2);
     ctx.fillStyle = body.color || '#ffffff';
     ctx.fill();
+
+    if (isSelected) {
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.beginPath();
+      ctx.arc(body.position.x, body.position.y, body.radius + 3, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   _drawTrail(body) {

@@ -49,6 +49,7 @@ export class CreationController {
     this._onMouseUp = this._onMouseUp.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onWheel = this._onWheel.bind(this);
+    this._onContextMenu = this._onContextMenu.bind(this);
 
     this._attachEventListeners();
   }
@@ -75,12 +76,17 @@ export class CreationController {
     this.canvas.addEventListener('wheel', this._onWheel, { passive: false });
 
     window.addEventListener('keydown', this._onKeyDown);
-    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    this.canvas.addEventListener('contextmenu', this._onContextMenu);
   }
 
   destroy() {
     this.canvas.removeEventListener('mousedown', this._onMouseDown);
     this.canvas.removeEventListener('mousemove', this._onMouseMove);
+    this.canvas.removeEventListener('mouseup', this._onMouseUp);
+    this.canvas.removeEventListener('mouseleave', this._onMouseUp);
+    this.canvas.removeEventListener('wheel', this._onWheel);
+    this.canvas.removeEventListener('contextmenu', this._onContextMenu);
+
     window.removeEventListener('keydown', this._onKeyDown);
   }
 
@@ -223,6 +229,13 @@ export class CreationController {
   }
 
   /**
+   * Prevents the default browser context menu on the simulation canvas.
+   */
+  _onContextMenu(event) {
+    event.preventDefault();
+  }
+
+  /**
    * Keyboard handler:
    * ESC cancels the current creation and returns to the idle state.
    */
@@ -270,6 +283,8 @@ export class CreationController {
    * - adds the body to the simulation.
    */
   _finalizeBody(pos) {
+    if (this.radius < this.minRadius) return;
+
     const velocity = {
       x: (pos.x - this.center.x) * this.velocityScale,
       y: (pos.y - this.center.y) * this.velocityScale,

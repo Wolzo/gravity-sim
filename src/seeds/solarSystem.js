@@ -1,6 +1,6 @@
 import { Body } from '../core/body.js';
 import { Vec2 } from '../core/vector2.js';
-import { radiusFromMass, GRAVITY_CONSTANT } from '../core/config.js';
+import { radiusFromMass, massFromRadius, GRAVITY_CONSTANT } from '../core/config.js';
 import { configureCameraForSeed } from '../utils/utils.js';
 
 /**
@@ -18,8 +18,7 @@ export function seedSolarSystem(renderer) {
   simulation.clear();
 
   const EARTH_RADIUS = 30;
-
-  const EARTH_MASS = Math.PI * EARTH_RADIUS * EARTH_RADIUS * 0.5;
+  const EARTH_MASS = massFromRadius(EARTH_RADIUS);
 
   const SUN_MASS_FACTOR = 1000;
   const SUN_MASS = EARTH_MASS * SUN_MASS_FACTOR;
