@@ -240,8 +240,66 @@ export class CreationController {
    * ESC cancels the current creation and returns to the idle state.
    */
   _onKeyDown(event) {
-    if (event.key === 'Escape' && this.mode !== CREATION_STATES.IDLE) {
-      this._reset();
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')
+      return;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const sxCenter = rect.width / 2;
+    const syCenter = rect.height / 2;
+
+    switch (event.code) {
+      case 'Space':
+        this.hud.toggleRunning();
+        break;
+
+      case 'KeyR':
+        this.hud.resetSim();
+        break;
+
+      case 'Escape':
+        if (this.mode !== CREATION_STATES.IDLE) {
+          this._reset();
+        }
+        break;
+
+      case 'Delete':
+      case 'Backspace':
+        const body = this.selectedBody;
+        if (body) {
+          this.simulation.removeBody(body);
+          this._setSelectedBody(null);
+        }
+        break;
+
+      case 'ArrowUp':
+      case 'KeyW':
+        this.camera.move(0, -20 / this.camera.zoom);
+        break;
+
+      case 'ArrowDown':
+      case 'KeyS':
+        this.camera.move(0, 20 / this.camera.zoom);
+        break;
+
+      case 'ArrowLeft':
+      case 'KeyA':
+        this.camera.move(-20 / this.camera.zoom, 0);
+        break;
+
+      case 'ArrowRight':
+      case 'KeyD':
+        this.camera.move(20 / this.camera.zoom, 0);
+        break;
+
+      case 'Equal':
+      case 'NumpadAdd':
+        this.camera.zoomAt(sxCenter, syCenter, 1.1);
+        break;
+
+      case 'Minus':
+      case 'NumpadSubtract':
+        this.camera.zoomAt(sxCenter, syCenter, 0.9);
+        break;
     }
   }
 

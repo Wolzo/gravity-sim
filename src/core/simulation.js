@@ -21,6 +21,17 @@ export class Simulation {
     this.bodies.push(body);
   }
 
+  removeBody(body) {
+    const index = this.bodies.indexOf(body);
+    if (index === -1) return false;
+
+    if (body.trail) body.trail.length = 0;
+    if (this.followTarget === body) this.followTarget = null;
+
+    this.bodies.splice(index, 1);
+    return true;
+  }
+
   clear() {
     this.bodies.length = 0;
     this.time = 0;

@@ -36,6 +36,11 @@ export class Camera {
     };
   }
 
+  move(dx, dy) {
+    this.position.x += dx;
+    this.position.y += dy;
+  }
+
   /**
    * Changes the zoom level around a given screen-space point.
    * Keeps the world point under (sx, sy) fixed in place while zooming.

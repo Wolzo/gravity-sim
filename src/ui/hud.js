@@ -40,14 +40,7 @@ export function initHud(renderer, seeds, defaultSeedKey) {
 
   btnToggle.addEventListener('click', () => toggleRunning());
 
-  btnReset.addEventListener('click', () => {
-    const seed = seeds[currentSeedKey];
-    if (seed && typeof seed.apply === 'function') {
-      seed.apply(renderer);
-    }
-
-    resetFocus();
-  });
+  btnReset.addEventListener('click', () => resetSim());
 
   if (speedSlider) {
     speedSlider.addEventListener('input', () => {
@@ -74,12 +67,7 @@ export function initHud(renderer, seeds, defaultSeedKey) {
 
     seedSelect.addEventListener('change', () => {
       currentSeedKey = seedSelect.value;
-      const seed = seeds[currentSeedKey];
-      if (seed && typeof seed.apply === 'function') {
-        seed.apply(renderer);
-      }
-
-      resetFocus();
+      resetSim();
     });
   }
 
@@ -203,6 +191,15 @@ export function initHud(renderer, seeds, defaultSeedKey) {
     }
   }
 
+  function resetSim() {
+    const seed = seeds[currentSeedKey];
+    if (seed && typeof seed.apply === 'function') {
+      seed.apply(renderer);
+    }
+
+    resetFocus();
+  }
+
   return {
     isRunning: () => running,
     getTimeScale: () => timeScale,
@@ -211,5 +208,6 @@ export function initHud(renderer, seeds, defaultSeedKey) {
     setHudDisabled,
     updateHud,
     setSelectedBody,
+    resetSim,
   };
 }

@@ -58,14 +58,17 @@ export class Renderer {
     ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, -camX * dpr * zoom, -camY * dpr * zoom);
 
     for (const body of this.simulation.bodies) {
-      this._drawTrail(body);
-      this._drawBody(body, body === this.selectedBody);
+      this._drawTrail(body, zoom);
+    }
+
+    for (const body of this.simulation.bodies) {
+      this._drawBody(body, zoom, body === this.selectedBody);
     }
 
     ctx.restore();
   }
 
-  _drawBody(body, isSelected = false) {
+  _drawBody(body, zoom, isSelected = false) {
     const { ctx } = this;
 
     ctx.beginPath();
@@ -75,22 +78,22 @@ export class Renderer {
 
     if (isSelected) {
       ctx.save();
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 / zoom;
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
       ctx.beginPath();
-      ctx.arc(body.position.x, body.position.y, body.radius + 3, 0, Math.PI * 2);
+      ctx.arc(body.position.x, body.position.y, body.radius, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
   }
 
-  _drawTrail(body) {
+  _drawTrail(body, zoom) {
     const { ctx } = this;
     if (!body.trail || body.trail.length < 2) return;
 
     ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.75;
+    ctx.lineWidth = 1.8 / zoom;
     ctx.strokeStyle = body.color || '#ffffff';
 
     ctx.beginPath();
