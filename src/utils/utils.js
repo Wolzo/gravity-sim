@@ -5,6 +5,11 @@ export function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+export function pseudoRandom(a, b) {
+  const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
 /**
  * Formats a numeric value for HUD display:
  * - uses scientific notation for very small or very large magnitudes

@@ -181,11 +181,6 @@ export class Simulation {
       body.velocity.x += body.acceleration.x * dt;
       body.velocity.y += body.acceleration.y * dt;
 
-      // At the end of velocity update:
-      const damping = 1 - 0.003 * dt;
-      body.velocity.x *= damping;
-      body.velocity.y *= damping;
-
       body.position.x += body.velocity.x * dt;
       body.position.y += body.velocity.y * dt;
 

@@ -1,27 +1,28 @@
 import { Body } from '../core/body.js';
 import { Vec2 } from '../core/vector2.js';
 import { massFromRadius } from '../core/config.js';
+import { configureCameraForSeed } from '../utils/utils.js';
 
+/**
+ * Two clusters of bodies on a head-on collision course.
+ * Previously positioned relative to the canvas center; now everything
+ * is expressed in world coordinates centered at (0, 0)
+ */
 export function seedHeadOnClusters(renderer) {
   const simulation = renderer?.simulation;
-  const canvas = renderer?.canvas;
-  if (!simulation || !canvas) return;
-
-  const rect = canvas.getBoundingClientRect();
-  const cx = rect.width / 2;
-  const cy = rect.height / 2;
+  if (!simulation) return;
 
   simulation.clear();
 
-  const OFFSET_X = 220;
-  const CLUSTER_RADIUS = 80;
+  const OFFSET_X = 700;
+  const CLUSTER_RADIUS = 250;
   const CLUSTER_COUNT = 40;
 
   // Left cluster core
-  const coreRadiusL = 18;
+  const coreRadiusL = 20;
   const coreMassL = massFromRadius(coreRadiusL);
   const coreL = new Body({
-    position: new Vec2(cx - OFFSET_X, cy),
+    position: new Vec2(-OFFSET_X, 0),
     velocity: new Vec2(24, 0),
     mass: coreMassL,
     radius: coreRadiusL,
@@ -31,10 +32,10 @@ export function seedHeadOnClusters(renderer) {
   simulation.addBody(coreL);
 
   // Right cluster core
-  const coreRadiusR = 20;
+  const coreRadiusR = 30;
   const coreMassR = massFromRadius(coreRadiusR);
   const coreR = new Body({
-    position: new Vec2(cx + OFFSET_X, cy),
+    position: new Vec2(OFFSET_X, 0),
     velocity: new Vec2(-24, 0),
     mass: coreMassR,
     radius: coreRadiusR,
@@ -65,7 +66,7 @@ export function seedHeadOnClusters(renderer) {
       const vx = core.velocity.x + tangent.x * baseSpeed * swirl * sign + (Math.random() - 0.5) * 4;
       const vy = core.velocity.y + tangent.y * baseSpeed * swirl * sign + (Math.random() - 0.5) * 4;
 
-      const radius = 3 + Math.random() * 3;
+      const radius = 2 + Math.random() * 3;
       const mass = massFromRadius(radius);
 
       const body = new Body({
@@ -82,4 +83,9 @@ export function seedHeadOnClusters(renderer) {
 
   spawnClusterAround(coreL, '#ffb19a', +1);
   spawnClusterAround(coreR, '#9ad0ff', -1);
+
+  configureCameraForSeed(renderer, {
+    center: new Vec2(0, 0),
+    zoom: 0.9,
+  });
 }

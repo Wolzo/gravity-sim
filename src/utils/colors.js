@@ -1,132 +1,89 @@
-import { clamp } from './utils.js';
+import { EARTH_MASS_UNITS } from '../core/config.js';
+import { pseudoRandom } from './utils.js';
 
 /**
- * Generate physically-meaningful pastel colors for bodies
- * based on their mass (type of object) and velocity (kinetic energy).
+ * Color utility for bodies.
  *
- * - Very massive bodies are treated as "stars" → bright warm tones
- * - Massive bodies are "gas giants"           → beige / soft orange
- * - Medium bodies are "rocky planets"         → neutral / bluish
- * - Tiny bodies are "debris / asteroids"      → darker neutral tones
+ * Colors are chosen from small, hand-picked pastel palettes
+ * that are loosely inspired by real Solar System bodies:
  *
- * Velocity slightly increases saturation and decreases lightness,
- * mimicking higher kinetic energy, but the result stays in a
- * minimal, pastel range.
+ *  - "star"     -> bright warm whites / yellows
+ *  - "gasGiant" -> Jupiter / Saturn / Neptune-like tones
+ *  - "rocky"    -> Earth blue, Mars red, Venus/Mercury beiges
+ *  - "debris"   -> various rock/grey tones
+ *
+ * The main entry point is:
+ *
+ *   colorForBody({ mass, velocity, kind? })
+ *
+ * where:
+ *   - mass      : body mass in simulation units
+ *   - velocity  : { x, y } velocity vector (used only as a seed for variety)
+ *   - kind      : optional override ('star' | 'gasGiant' | 'rocky' | 'debris')
+ *
+ * If kind is not provided, the body type is inferred from
+ * mass / EARTH_MASS_UNITS so all seeds and user-created
+ * bodies share the same physical scale.
  */
 
-/**
- * Deterministic pseudo-random number in [0, 1) based on two inputs.
- * Used only for tiny lightness jitter so similar bodies are not identical.
- */
-function pseudoRandom(a, b) {
-  const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
-  return x - Math.floor(x);
-}
+const PALETTES = {
+  star: [
+    '#fff7e6', // very bright, almost white
+    '#ffe9c4', // warm soft yellow
+    '#fff3cf', // pale yellow
+  ],
+  gasGiant: [
+    '#d3b58b', // Jupiter-like brown/beige
+    '#e2c8a5', // Saturn-like paler beige
+    '#9fc3d8', // Neptune/Uranus bluish-cyan
+    '#c5d1e0', // softer cold giant
+  ],
+  rocky: [
+    '#466d9d', // Earth-like blue
+    '#c96a5a', // Mars-like reddish
+    '#d1c3b2', // Mercury/Venus beige
+    '#7d8a99', // generic rocky/grey-blue
+  ],
+  debris: [
+    '#8b929e', // dark rock grey
+    '#a1a8b3', // medium grey
+    '#767d88', // darker fragments
+    '#b0b7c2', // lighter dust
+  ],
+};
 
 /**
- * Convert HSL color to HEX (#rrggbb).
- * h in [0, 360), s and l in [0, 100].
- */
-function hslToHex(h, s, l) {
-  s /= 100;
-  l /= 100;
-
-  const k = (n) => (n + h / 30) % 12;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-
-  const r = Math.round(255 * f(0));
-  const g = Math.round(255 * f(8));
-  const b = Math.round(255 * f(4));
-
-  return (
-    '#' +
-    r.toString(16).padStart(2, '0') +
-    g.toString(16).padStart(2, '0') +
-    b.toString(16).padStart(2, '0')
-  );
-}
-
-/**
- * Classify a body type based on mass using log10(mass).
- * Adjust thresholds to match your typical mass scale.
- *
- * Returns one of: "star" | "gasGiant" | "rocky" | "debris".
+ * Classify a body type based on mass relative to an Earth-like body.
  */
 function classifyBodyType(mass) {
   const m = Math.max(mass || 1, 1e-12);
-  const logM = Math.log10(m);
+  const ratio = m / EARTH_MASS_UNITS;
 
-  // These thresholds assume something like:
-  //  - logM >= 7 → star
-  //  - 5–7       → gas giant
-  //  - 3–5       → rocky planet
-  //  - <3        → debris / asteroid
-  if (logM >= 7) return 'star';
-  if (logM >= 5) return 'gasGiant';
-  if (logM >= 3) return 'rocky';
+  if (ratio >= 200) return 'star';
+  if (ratio >= 20) return 'gasGiant';
+  if (ratio >= 0.05) return 'rocky';
   return 'debris';
 }
 
 /**
- * Base HSL parameters for each physical class.
- * All values are kept in a pastel / minimal range.
+ * Choose a color from the palette of the given type, using
+ * a deterministic seed based on mass and speed.
  */
-function getBaseHslForType(type) {
-  switch (type) {
-    case 'star':
-      // Warm, bright, slightly yellow-white
-      return { h: 45, s: 55, l: 82 };
-    case 'gasGiant':
-      // Soft beige / light orange
-      return { h: 35, s: 45, l: 75 };
-    case 'rocky':
-      // Neutral / slightly bluish, not too saturated
-      return { h: 210, s: 28, l: 68 };
-    case 'debris':
-    default:
-      // Darker neutral, a hint of blue/grey
-      return { h: 220, s: 22, l: 58 };
-  }
-}
+function pickColorFromPalette(type, mass, velocity) {
+  const palette = PALETTES[type] || PALETTES.debris;
 
-/**
- * Main color generator.
- *
- * @param {Object} params
- * @param {number} params.mass - mass of the body
- * @param {Object} params.velocity - velocity vector { x, y }
- * @returns {string} HEX color
- */
-export function colorForBody({ mass, velocity } = {}) {
-  const type = classifyBodyType(mass);
-  const base = getBaseHslForType(type);
-
-  // Speed magnitude as a proxy for kinetic temperature
   let speed = 0;
   if (velocity && Number.isFinite(velocity.x) && Number.isFinite(velocity.y)) {
     speed = Math.hypot(velocity.x, velocity.y);
   }
 
-  // Normalize speed to [0, 1] for typical ranges in your sim.
-  // Tune SPEED_REF if your velocities are much larger/smaller.
-  const SPEED_REF = 40;
-  const tSpeed = clamp(speed / SPEED_REF, 0, 1);
+  const seed = pseudoRandom(mass || 1, speed || 0);
+  const idx = Math.floor(seed * palette.length) % palette.length;
 
-  // Velocity effect:
-  // - Faster → slightly more saturated and darker
-  // - Slower → slightly less saturated and lighter
-  let sat = base.s + (tSpeed - 0.5) * 16; // ±8 points around base
-  let light = base.l - tSpeed * 8; // up to 8 points darker at high speed
+  return palette[idx];
+}
 
-  sat = clamp(sat, 18, 60);
-  light = clamp(light, 45, 88);
-
-  // Tiny deterministic jitter in lightness so similar bodies are not flat clones.
-  const jitter = pseudoRandom(Math.log10(Math.max(mass || 1, 1e-12)), speed || 0);
-  const jitterRange = 4; // ±2
-  light += (jitter - 0.5) * jitterRange;
-  light = clamp(light, 45, 88);
-
-  return hslToHex(base.h, sat, light);
+export function colorForBody({ mass, velocity, kind } = {}) {
+  const type = kind || classifyBodyType(mass);
+  return pickColorFromPalette(type, mass, velocity);
 }

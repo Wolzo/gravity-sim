@@ -1,24 +1,29 @@
 import { Body } from '../core/body.js';
 import { Vec2 } from '../core/vector2.js';
 import { massFromRadius, GRAVITY_CONSTANT } from '../core/config.js';
+import { configureCameraForSeed } from '../utils/utils.js';
 
+/**
+ * Planet-centered asteroid ring:
+ * - massive planet at the origin
+ * - wide ring of small bodies in (almost) circular orbits
+ *
+ * Uses the same world coordinates as the Solar System seed:
+ * the origin (0, 0) is the natural center of the scene and the
+ * camera is positioned via configureCameraForSeed.
+ */
 export function seedAsteroidRing(renderer) {
   const simulation = renderer?.simulation;
-  const canvas = renderer?.canvas;
-  if (!simulation || !canvas) return;
-
-  const rect = canvas.getBoundingClientRect();
-  const cx = rect.width / 2;
-  const cy = rect.height / 2;
+  if (!simulation) return;
 
   simulation.clear();
 
   // Central planet
-  const PLANET_RADIUS = 50;
+  const PLANET_RADIUS = 80;
   const PLANET_MASS = massFromRadius(PLANET_RADIUS);
 
   const planet = new Body({
-    position: new Vec2(cx, cy),
+    position: new Vec2(0, 0),
     velocity: new Vec2(0, 0),
     mass: PLANET_MASS,
     radius: PLANET_RADIUS,
@@ -26,11 +31,10 @@ export function seedAsteroidRing(renderer) {
 
   simulation.addBody(planet);
 
-  // Asteroid ring
-  const G = GRAVITY_CONSTANT;
-  const INNER_RADIUS = PLANET_RADIUS * 15;
-  const OUTER_RADIUS = PLANET_RADIUS * 40;
-  const ASTEROID_COUNT = 140;
+  const G = typeof simulation.G === 'number' ? simulation.G : GRAVITY_CONSTANT;
+  const INNER_RADIUS = PLANET_RADIUS * 20;
+  const OUTER_RADIUS = PLANET_RADIUS * 50;
+  const ASTEROID_COUNT = 240;
 
   for (let i = 0; i < ASTEROID_COUNT; i++) {
     const t = i / ASTEROID_COUNT;
@@ -38,11 +42,10 @@ export function seedAsteroidRing(renderer) {
 
     const ringRadius = INNER_RADIUS + (OUTER_RADIUS - INNER_RADIUS) * (0.15 + 0.7 * Math.random());
 
-    const x = cx + ringRadius * Math.cos(angle);
-    const y = cy + ringRadius * Math.sin(angle);
+    const x = ringRadius * Math.cos(angle);
+    const y = ringRadius * Math.sin(angle);
 
-    const dir = new Vec2((x - cx) / ringRadius, (y - cy) / ringRadius);
-
+    const dir = new Vec2(x / ringRadius, y / ringRadius);
     const tangent = new Vec2(-dir.y, dir.x);
 
     // Approx circular orbital speed around the planet
@@ -64,4 +67,9 @@ export function seedAsteroidRing(renderer) {
 
     simulation.addBody(asteroid);
   }
+
+  configureCameraForSeed(renderer, {
+    center: new Vec2(0, 0),
+    zoom: 0.25,
+  });
 }
