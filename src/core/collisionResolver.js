@@ -10,6 +10,8 @@ const DEBRIS_EXTRA_KICK = 5.0; // multiplier for fragment ejection speed
 const MASS_RATIO_BIG = 4; // above this, treat collision as big–small
 const ALPHA_MERGE = 0.25; // below this, always inelastic merge
 
+const MAX_FRAGMENTS = 15;
+
 /**
  * Handles classification and resolution of pair-wise collisions.
  * It is stateless with respect to bodies, but keeps a reference
@@ -211,7 +213,6 @@ export class CollisionResolver {
     const newBodies = [mergedBody];
 
     // "Tomato splash" fragments around the impact zone
-    const MAX_FRAGMENTS = 8;
     if (fragmentMassTotal > 0 && mergedRadius > 0) {
       const fragCount = Math.min(MAX_FRAGMENTS, Math.max(4, Math.round(4 + alpha * 2)));
       const singleFragMass = fragmentMassTotal / fragCount;
@@ -332,7 +333,6 @@ export class CollisionResolver {
       return newBodies;
     }
 
-    const MAX_FRAGMENTS = 10;
     const fragCount = Math.min(MAX_FRAGMENTS, Math.max(6, Math.round(6 + alpha * 2)));
     const singleFragMass = fragmentMassTotal / fragCount;
 

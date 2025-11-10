@@ -4,7 +4,7 @@
  * so it looks like a broken piece of a larger body.
  */
 export function createDebrisShape() {
-  const sides = 6 + Math.floor(Math.random() * 4); // 6–9 "edge samples"
+  const sides = 7 + Math.floor(Math.random() * 8); // 7–14 "edge samples"
   const vertexJitter = [];
 
   for (let i = 0; i < sides; i++) {

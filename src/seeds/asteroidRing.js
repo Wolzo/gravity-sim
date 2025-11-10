@@ -19,7 +19,7 @@ export function seedAsteroidRing(renderer) {
   simulation.clear();
 
   // Central planet
-  const PLANET_RADIUS = 80;
+  const PLANET_RADIUS = 160;
   const PLANET_MASS = massFromRadius(PLANET_RADIUS);
 
   const planet = new Body({
@@ -32,8 +32,8 @@ export function seedAsteroidRing(renderer) {
   simulation.addBody(planet);
 
   const G = typeof simulation.G === 'number' ? simulation.G : GRAVITY_CONSTANT;
-  const INNER_RADIUS = PLANET_RADIUS * 20;
-  const OUTER_RADIUS = PLANET_RADIUS * 50;
+  const INNER_RADIUS = PLANET_RADIUS * 8;
+  const OUTER_RADIUS = PLANET_RADIUS * 20;
   const ASTEROID_COUNT = 240;
 
   for (let i = 0; i < ASTEROID_COUNT; i++) {

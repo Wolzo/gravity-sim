@@ -33,10 +33,10 @@ export class CreationController {
 
     this.hudElement = document.getElementById('hud');
 
-    this.minRadius = 5;
-    this.maxRadius = 160;
+    this.minRadius = 1;
+    this.maxRadius = 1000;
     this.minArrowLength = 0;
-    this.maxArrowLength = 600;
+    this.maxArrowLength = 800;
 
     this.isPanning = false;
     this.lastPanScreen = null;
