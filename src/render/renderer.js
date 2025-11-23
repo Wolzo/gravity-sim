@@ -1,6 +1,6 @@
 /**
  * Minimal 2D renderer for the gravity simulation.
- * Handles canvas DPI and draws trails + bodies.
+ * Optimized with View Culling for bodies and Adaptive Stride for trails.
  */
 export class Renderer {
   constructor(canvas, simulation, camera) {
@@ -17,29 +17,17 @@ export class Renderer {
     this.selectedBody = body || null;
   }
 
-  /**
-   * Resize the backing canvas buffer to match its CSS size multiplied by DPR.
-   * Must be called on window resize for crisp rendering.
-   */
   resize() {
     const rect = this.canvas.getBoundingClientRect();
     this.dpr = window.devicePixelRatio || 1;
-
     this.canvas.width = rect.width * this.dpr;
     this.canvas.height = rect.height * this.dpr;
 
     this.ctx.imageSmoothingEnabled = false;
   }
 
-  /**
-   * Render a full frame:
-   * - clears the screen
-   * - applies the camera transform (position + zoom)
-   * - draws all trails and bodies in world space.
-   */
   draw() {
     const { ctx, canvas, dpr, camera } = this;
-
     const width = canvas.width / dpr;
     const height = canvas.height / dpr;
 
@@ -57,12 +45,28 @@ export class Renderer {
 
     ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, -camX * dpr * zoom, -camY * dpr * zoom);
 
-    for (const body of this.simulation.bodies) {
+    const margin = 100 / zoom;
+    const viewLeft = camX - margin;
+    const viewTop = camY - margin;
+    const viewRight = camX + width / zoom + margin;
+    const viewBottom = camY + height / zoom + margin;
+
+    const bodies = this.simulation.bodies;
+
+    for (const body of bodies) {
       this._drawTrail(body, zoom);
     }
 
-    for (const body of this.simulation.bodies) {
-      this._drawBody(body, zoom, body === this.selectedBody);
+    for (const body of bodies) {
+      const r = body.radius;
+      if (
+        body.position.x + r >= viewLeft &&
+        body.position.x - r <= viewRight &&
+        body.position.y + r >= viewTop &&
+        body.position.y - r <= viewBottom
+      ) {
+        this._drawBody(body, zoom, body === this.selectedBody);
+      }
     }
 
     ctx.restore();
@@ -70,7 +74,6 @@ export class Renderer {
 
   _drawBody(body, zoom, isSelected = false) {
     const { ctx } = this;
-
     const x = body.position.x;
     const y = body.position.y;
     const radius = body.radius;
@@ -87,7 +90,7 @@ export class Renderer {
 
     if (isSelected) {
       ctx.save();
-      ctx.lineWidth = 1.8;
+      ctx.lineWidth = 2.0 / zoom;
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -103,60 +106,46 @@ export class Renderer {
 
     const { ctx } = this;
 
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = body.color || '#ffffff';
-
-    const TARGET_SEGMENTS = 500;
     let stride = 1;
+    if (zoom < 0.5) stride = 2;
+    if (zoom < 0.1) stride = 4;
+    if (zoom < 0.05) stride = 8;
+    if (zoom < 0.01) stride = 20;
 
-    if (len > TARGET_SEGMENTS) {
-      stride = Math.floor(len / TARGET_SEGMENTS);
+    const maxVerts = 2000;
+    if (len / stride > maxVerts) {
+      stride = Math.ceil(len / maxVerts);
     }
 
-    if (stride > 16) stride = 16;
-
-    if (zoom < 0.1) stride *= 2;
+    ctx.lineWidth = 1.5 / (zoom * 1.8);
+    ctx.strokeStyle = body.color || '#ffffff';
+    ctx.globalAlpha = 0.5;
 
     ctx.beginPath();
-    ctx.moveTo(trail[0].x, trail[0].y);
 
-    let i = 0;
-    while (i < len - stride) {
-      const nextIndex = i + stride;
-      if (stride > 1) {
-        const midIndex = Math.floor((i + nextIndex) / 2);
-        const pMid = trail[midIndex];
-        const pNext = trail[nextIndex];
+    let firstPoint = true;
 
-        ctx.quadraticCurveTo(pMid.x, pMid.y, pNext.x, pNext.y);
+    for (let i = 0; i < len; i += stride) {
+      const p = trail[i];
+      if (firstPoint) {
+        ctx.moveTo(p.x, p.y);
+        firstPoint = false;
       } else {
-        const pNext = trail[nextIndex];
-        ctx.lineTo(pNext.x, pNext.y);
+        ctx.lineTo(p.x, p.y);
       }
-
-      i += stride;
     }
 
-    ctx.lineTo(trail[len - 1].x, trail[len - 1].y);
+    ctx.lineTo(body.position.x, body.position.y);
 
     ctx.stroke();
+    ctx.globalAlpha = 1.0;
   }
 
   _drawDebrisShape(ctx, body, x, y, radius) {
     const shape = body.shape || {};
-
-    const sidesRaw = shape.sides != null ? shape.sides : 6;
-    const sides = Math.max(3, sidesRaw | 0);
-
+    const sides = Math.max(3, shape.sides || 6);
     const angle = shape.angle || 0;
-
-    const vertexJitter =
-      Array.isArray(shape.vertexJitter) && shape.vertexJitter.length > 0
-        ? shape.vertexJitter
-        : null;
-
-    const rx = radius;
-    const ry = radius;
+    const vertexJitter = shape.vertexJitter || null;
 
     ctx.save();
     ctx.translate(x, y);
@@ -165,21 +154,16 @@ export class Renderer {
     ctx.beginPath();
     for (let i = 0; i < sides; i++) {
       const t = (i / sides) * Math.PI * 2;
-
       const jitter = vertexJitter ? vertexJitter[i % vertexJitter.length] : 1.0;
 
-      const px = Math.cos(t) * rx * jitter;
-      const py = Math.sin(t) * ry * jitter;
+      const px = Math.cos(t) * radius * jitter;
+      const py = Math.sin(t) * radius * jitter;
 
-      if (i === 0) {
-        ctx.moveTo(px, py);
-      } else {
-        ctx.lineTo(px, py);
-      }
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
     }
     ctx.closePath();
     ctx.fill();
-
     ctx.restore();
   }
 }

@@ -16,11 +16,13 @@ const CREATION_STATES = {
  * - notifies the HUD when a body is selected.
  */
 export class CreationController {
-  constructor(simulation, canvas, hud, camera, onBodySelected) {
+  constructor(simulation, canvas, hud, camera, hudElement, onBodySelected) {
     this.simulation = simulation;
     this.canvas = canvas;
     this.hud = hud;
     this.camera = camera;
+
+    this.hudElement = hudElement;
 
     this.mode = CREATION_STATES.IDLE;
     this.center = null;
@@ -30,8 +32,6 @@ export class CreationController {
 
     this.onBodySelected = onBodySelected;
     this.selectedBody = null;
-
-    this.hudElement = document.getElementById('hud');
 
     this.minRadius = 1;
     this.maxRadius = 1000;

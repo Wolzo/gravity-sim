@@ -1,6 +1,6 @@
 import { Vec2 } from './vector2.js';
 
-const MAX_DEPTH = 64;
+const MAX_DEPTH = 16;
 
 class Node {
   constructor(x, y, size, depth) {
@@ -78,6 +78,45 @@ class Node {
     if (!right && bottom) return 2; // SW
     return 3; // SE
   }
+
+  /**
+   * Recursively finds bodies within the defined circular range.
+   * range: { x, y, r } (center x, center y, radius)
+   */
+  query(range, found) {
+    // Check if the range intersects this node's bounds
+    // Node bounds: [this.x, this.x + this.size]
+    const rangeLeft = range.x - range.r;
+    const rangeRight = range.x + range.r;
+    const rangeTop = range.y - range.r;
+    const rangeBottom = range.y + range.r;
+
+    const nodeRight = this.x + this.size;
+    const nodeBottom = this.y + this.size;
+
+    // No intersection? Abort.
+    if (
+      rangeLeft > nodeRight ||
+      rangeRight < this.x ||
+      rangeTop > nodeBottom ||
+      rangeBottom < this.y
+    ) {
+      return;
+    }
+
+    // If leaf node with a body, add it
+    if (this.body) {
+      found.push(this.body);
+    }
+
+    // Recurse into children
+    if (this.children) {
+      this.children[0].query(range, found);
+      this.children[1].query(range, found);
+      this.children[2].query(range, found);
+      this.children[3].query(range, found);
+    }
+  }
 }
 
 export class QuadTree {
@@ -90,6 +129,16 @@ export class QuadTree {
 
   insert(body) {
     this.root.insert(body);
+  }
+
+  /**
+   * Returns all bodies within the given radius of (x, y).
+   */
+  query(x, y, radius) {
+    const found = [];
+    const range = { x, y, r: radius };
+    this.root.query(range, found);
+    return found;
   }
 
   calculateForce(body, G, softening) {

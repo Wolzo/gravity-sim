@@ -4,6 +4,7 @@ import { QuadTree } from './quadtree.js';
 
 const MAX_BODIES = 400;
 const THETA = 0.5; // Barnes-Hut opening angle threshold
+const SEARCH_PADDING = 500;
 
 /**
  * Core N-body gravity simulation.
@@ -21,6 +22,8 @@ export class Simulation {
     this.debugEnabled = false;
     this.debugCollisions = [];
     this.maxDebugCollisions = 200;
+
+    this.quadTree = null;
 
     this.collisionResolver = new CollisionResolver({
       G: this.G,
@@ -57,23 +60,24 @@ export class Simulation {
   }
 
   /**
-   * Advance the simulation by dt seconds:
-   * - compute gravitational forces
-   * - integrate motion
-   * - resolve collisions
-   * - advance internal time
+   * Advance the simulation by dt seconds using Velocity Verlet:
+   * 1. First Half: Update position and half-velocity
+   * 2. Compute Forces: Calculate new acceleration based on new positions
+   * 3. Second Half: Update velocity with new acceleration
+   * 4. Resolve Collisions
    */
   step(dt) {
     if (!Number.isFinite(dt) || dt <= 0) return;
-
     if (this.bodies.length === 0) {
       this.time += dt;
       return;
     }
 
+    this._integratePosition(dt);
     this._computeForces();
-    this._integrate(dt);
+    this._integrateVelocity(dt);
     this._resolveCollisions();
+
     this.time += dt;
   }
 
@@ -136,7 +140,6 @@ export class Simulation {
 
     if (count === 0) return;
 
-    // 1. Calculate world bounds
     let minX = Infinity,
       minY = Infinity,
       maxX = -Infinity,
@@ -152,7 +155,6 @@ export class Simulation {
       if (b.position.y > maxY) maxY = b.position.y;
     }
 
-    // Add padding to avoid edge cases
     const padding = 100;
     const width = maxX - minX + padding * 2;
     const height = maxY - minY + padding * 2;
@@ -164,16 +166,14 @@ export class Simulation {
       height: height,
     };
 
-    // 2. Build QuadTree
-    const tree = new QuadTree(bounds, THETA);
+    this.quadTree = new QuadTree(bounds, THETA);
     for (let i = 0; i < count; i++) {
-      tree.insert(bodies[i]);
+      this.quadTree.insert(bodies[i]);
     }
 
-    // 3. Calculate forces
     for (let i = 0; i < count; i++) {
       const b = bodies[i];
-      const force = tree.calculateForce(b, this.G, this.softening);
+      const force = this.quadTree.calculateForce(b, this.G, this.softening);
 
       b.acceleration.x += force.x;
       b.acceleration.y += force.y;
@@ -181,16 +181,23 @@ export class Simulation {
   }
 
   /**
-   * Integrate motion with a semi-implicit (symplectic) Euler step
-   * and update trails for rendering.
+   * Verlet Pass 1:
+   * r(t+dt) = r(t) + v(t)dt + 0.5 * a(t) * dt^2
+   * v(t+0.5dt) = v(t) + 0.5 * a(t) * dt
    */
-  _integrate(dt) {
-    for (const body of this.bodies) {
-      body.velocity.x += body.acceleration.x * dt;
-      body.velocity.y += body.acceleration.y * dt;
+  _integratePosition(dt) {
+    const halfDt = dt * 0.5;
+    const dtSqHalf = dt * dt * 0.5;
 
-      body.position.x += body.velocity.x * dt;
-      body.position.y += body.velocity.y * dt;
+    for (const body of this.bodies) {
+      const ax = body.acceleration.x;
+      const ay = body.acceleration.y;
+
+      body.position.x += body.velocity.x * dt + ax * dtSqHalf;
+      body.position.y += body.velocity.y * dt + ay * dtSqHalf;
+
+      body.velocity.x += ax * halfDt;
+      body.velocity.y += ay * halfDt;
 
       body.trail.push({
         x: body.position.x,
@@ -204,70 +211,77 @@ export class Simulation {
   }
 
   /**
-   * Detect and resolve collisions.
-   * For each overlapping pair, we remove both bodies and replace them
-   * with zero or more new bodies produced by the CollisionResolver.
+   * Verlet Pass 2:
+   * v(t+dt) = v(t+0.5dt) + 0.5 * a(t+dt) * dt
+   */
+  _integrateVelocity(dt) {
+    const halfDt = dt * 0.5;
+
+    for (const body of this.bodies) {
+      body.velocity.x += body.acceleration.x * halfDt;
+      body.velocity.y += body.acceleration.y * halfDt;
+    }
+  }
+
+  /**
+   * Detect and resolve collisions using QuadTree for broad-phase.
    */
   _resolveCollisions() {
     const bodies = this.bodies;
     const n = bodies.length;
-    const alive = new Array(n).fill(true);
+
+    if (!this.quadTree) return;
+
+    const deadBodies = new Set();
     const generatedBodies = [];
 
     for (let i = 0; i < n; i++) {
-      if (!alive[i]) continue;
-
       const bi = bodies[i];
-      const pix = bi.position.x;
-      const piy = bi.position.y;
-      const ri = bi.radius;
+      if (deadBodies.has(bi)) continue;
 
-      for (let j = i + 1; j < n; j++) {
-        if (!alive[j]) continue;
+      const searchRadius = bi.radius + SEARCH_PADDING;
+      const neighbors = this.quadTree.query(bi.position.x, bi.position.y, searchRadius);
 
-        const bj = bodies[j];
-        const pjx = bj.position.x;
-        const pjy = bj.position.y;
-        const rj = bj.radius;
+      for (const bj of neighbors) {
+        if (bi === bj || deadBodies.has(bj)) continue;
 
-        const dx = pjx - pix;
-        const dy = pjy - piy;
-        const rSum = ri + rj;
+        const dx = bj.position.x - bi.position.x;
+        const dy = bj.position.y - bi.position.y;
+        const rSum = bi.radius + bj.radius;
         const d2 = dx * dx + dy * dy;
 
         if (d2 < rSum * rSum) {
           const outcome = this.collisionResolver.computeOutcome(bi, bj);
 
           if (Array.isArray(outcome)) {
-            for (let k = 0; k < outcome.length; k++) {
-              const nb = outcome[k];
-
-              if (!nb) continue;
-              if (!Number.isFinite(nb.mass) || nb.mass <= 0) continue;
-              if (!Number.isFinite(nb.radius) || nb.radius <= 0.5) continue;
-
-              generatedBodies.push(nb);
+            for (const nb of outcome) {
+              if (nb && Number.isFinite(nb.mass) && nb.mass > 0 && nb.radius > 0.5) {
+                generatedBodies.push(nb);
+              }
             }
           }
 
-          alive[i] = false;
-          alive[j] = false;
+          deadBodies.add(bi);
+          deadBodies.add(bj);
           this.collisionCount++;
           break;
         }
       }
     }
 
-    const result = [];
-    for (let i = 0; i < n; i++) {
-      if (alive[i]) result.push(bodies[i]);
+    if (deadBodies.size > 0 || generatedBodies.length > 0) {
+      const nextBodies = [];
+      for (let i = 0; i < n; i++) {
+        if (!deadBodies.has(bodies[i])) {
+          nextBodies.push(bodies[i]);
+        }
+      }
+      for (const newBody of generatedBodies) {
+        if (nextBodies.length < MAX_BODIES) {
+          nextBodies.push(newBody);
+        }
+      }
+      this.bodies = nextBodies;
     }
-
-    for (let k = 0; k < generatedBodies.length; k++) {
-      if (result.length >= MAX_BODIES) break;
-      result.push(generatedBodies[k]);
-    }
-
-    this.bodies = result;
   }
 }

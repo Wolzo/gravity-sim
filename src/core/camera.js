@@ -15,25 +15,22 @@ export class Camera {
   }
 
   /**
-   * Converts a world-space point into screen-space coordinates (in CSS pixels),
-   * taking the camera position and zoom into account.
+   * Converts world-space to screen-space.
+   * Uses an optional 'target' object to avoid GC allocation.
    */
-  worldToScreen(x, y) {
-    return {
-      x: (x - this.position.x) * this.zoom,
-      y: (y - this.position.y) * this.zoom,
-    };
+  worldToScreen(x, y, target = { x: 0, y: 0 }) {
+    target.x = (x - this.position.x) * this.zoom;
+    target.y = (y - this.position.y) * this.zoom;
+    return target;
   }
 
   /**
-   * Converts screen-space coordinates (CSS pixels relative to the canvas)
-   * back into world-space coordinates.
+   * Converts screen-space to world-space.
    */
-  screenToWorld(sx, sy) {
-    return {
-      x: sx / this.zoom + this.position.x,
-      y: sy / this.zoom + this.position.y,
-    };
+  screenToWorld(sx, sy, target = { x: 0, y: 0 }) {
+    target.x = sx / this.zoom + this.position.x;
+    target.y = sy / this.zoom + this.position.y;
+    return target;
   }
 
   move(dx, dy) {
@@ -64,7 +61,7 @@ export class Camera {
 
   /**
    * Tells the camera to follow the given body.
-   * Pass `null` to stop following any body.
+   * Pass 'null' to stop following any body.
    */
   setFollowTarget(body) {
     this.followTarget = body || null;

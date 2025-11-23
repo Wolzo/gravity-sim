@@ -15,9 +15,9 @@ export const SOFTENING = 8;
 export const TRAIL_LENGTH = -1;
 
 /**
- * Maximum time step allowed per frame for numerical stability.
+ * Fixed physics step (120 Hz)
  */
-export const MAX_DT = 0.05;
+export const FIXED_TIME_STEP = 1 / 120;
 
 /**
  * Effective 2D "surface density" used for the mass–radius relationship.
