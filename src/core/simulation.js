@@ -97,6 +97,13 @@ export class Simulation {
     this._computeForces();
     this._integrateVelocity(dt);
     this._resolveCollisions();
+
+    for (const body of this.bodies) {
+      if (body.isDebris && body.shape) {
+        body.shape.angle += body.velocity.length() * dt * 0.05;
+      }
+    }
+
     this._updateFadingTrails(dt);
 
     this.time += dt;
