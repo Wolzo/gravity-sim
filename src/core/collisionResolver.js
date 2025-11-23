@@ -7,6 +7,7 @@ import {
   DEBRIS_EXTRA_KICK,
   MASS_RATIO_BIG,
   ALPHA_MERGE,
+  TRAIL_LENGTH,
 } from './config.js';
 import { Vec2 } from './vector2.js';
 import { Body } from './body.js';
@@ -131,7 +132,10 @@ export class CollisionResolver {
       color: dominant.color,
       name: dominant.name,
     });
-    mergedBody.trail = bi.trail.length > bj.trail.length ? [...bi.trail] : [...bj.trail];
+
+    const sourceTrail = bi.trail.length > bj.trail.length ? bi.trail : bj.trail;
+    const startIdx = Math.max(0, sourceTrail.length - TRAIL_LENGTH > 0 ? TRAIL_LENGTH : 500);
+    mergedBody.trail = sourceTrail.slice(startIdx);
 
     return mergedBody;
   }
