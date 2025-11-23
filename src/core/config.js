@@ -28,7 +28,7 @@ export const MAX_DEPTH = 16;
 /**
  * Distance to search around a body for collisions (Broad-phase padding).
  */
-export const SEARCH_PADDING = 500;
+export const SEARCH_PADDING = 100;
 
 /**
  * Hard cap on debris fragments per collision to prevent CPU freeze.

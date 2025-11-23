@@ -107,7 +107,6 @@ export class CollisionResolver {
     const newRadius = Math.sqrt(bi.radius * bi.radius + bj.radius * bj.radius);
 
     const dominant = bi.mass >= bj.mass ? bi : bj;
-
     const mergedBody = new Body({
       position: new Vec2(x, y),
       velocity: new Vec2(vx, vy),
@@ -118,7 +117,6 @@ export class CollisionResolver {
     });
 
     const sourceTrail = dominant.trail;
-
     if (sourceTrail.length > TRAIL_LENGTH) {
       const startIdx = sourceTrail.length - TRAIL_LENGTH;
       mergedBody.trail = sourceTrail.slice(startIdx);
@@ -248,6 +246,7 @@ export class CollisionResolver {
 
     const newBodies = [];
     const CORE_MIN_FRAC = 0.2;
+    const HISTORY_TO_KEEP = 1000;
 
     if (coreMass1 / m1 > CORE_MIN_FRAC) {
       const core1 = new Body({
@@ -258,7 +257,13 @@ export class CollisionResolver {
         color: b1.color,
         name: b1.name,
       });
-      core1.trail = [...b1.trail];
+
+      if (b1.trail.length > HISTORY_TO_KEEP) {
+        core1.trail = b1.trail.slice(b1.trail.length - HISTORY_TO_KEEP);
+      } else {
+        core1.trail = b1.trail.slice();
+      }
+
       core1.mergeCooldown = (time || 0) + 2.0;
       b1.trail = [];
       newBodies.push(core1);
@@ -273,7 +278,13 @@ export class CollisionResolver {
         color: b2.color,
         name: b2.name,
       });
-      core2.trail = [...b2.trail];
+
+      if (b2.trail.length > HISTORY_TO_KEEP) {
+        core2.trail = b2.trail.slice(b2.trail.length - HISTORY_TO_KEEP);
+      } else {
+        core2.trail = b2.trail.slice();
+      }
+
       core2.mergeCooldown = (time || 0) + 2.0;
       b2.trail = [];
       newBodies.push(core2);

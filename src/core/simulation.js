@@ -25,7 +25,6 @@ export class Simulation {
 
     this.stepsSinceLastTrail = 0;
     this.fadingTrails = [];
-
     this.debugEnabled = false;
     this.debugCollisions = [];
     this.maxDebugCollisions = 200;
@@ -54,7 +53,13 @@ export class Simulation {
     const index = this.bodies.indexOf(body);
     if (index === -1) return false;
 
-    if (body.trail) body.trail.length = 0;
+    if (body.trail && body.trail.length > 2) {
+      this.fadingTrails.push({
+        points: body.trail,
+        color: body.color,
+        life: 1.0,
+      });
+    }
 
     this.bodies.splice(index, 1);
     return true;
@@ -65,6 +70,7 @@ export class Simulation {
     this.time = 0;
     this.collisionCount = 0;
     this.debugCollisions = [];
+    this.fadingTrails = [];
   }
 
   /**
@@ -82,7 +88,6 @@ export class Simulation {
     }
 
     this.stepsSinceLastTrail++;
-
     const tryUpdateTrail = this.stepsSinceLastTrail >= TRAIL_INTERVAL;
     if (tryUpdateTrail) {
       this.stepsSinceLastTrail = 0;
@@ -155,16 +160,13 @@ export class Simulation {
     const count = bodies.length;
 
     if (count === 0) return;
-
     let minX = Infinity,
       minY = Infinity,
       maxX = -Infinity,
       maxY = -Infinity;
-
     for (let i = 0; i < count; i++) {
       const b = bodies[i];
       b.resetAcceleration();
-
       if (b.position.x < minX) minX = b.position.x;
       if (b.position.y < minY) minY = b.position.y;
       if (b.position.x > maxX) maxX = b.position.x;
@@ -174,14 +176,12 @@ export class Simulation {
     const padding = 100;
     const width = maxX - minX + padding * 2;
     const height = maxY - minY + padding * 2;
-
     const bounds = {
       x: minX - padding,
       y: minY - padding,
       width: width,
       height: height,
     };
-
     this.quadTree.reset(bounds);
     for (let i = 0; i < count; i++) {
       this.quadTree.insert(bodies[i]);
@@ -214,11 +214,9 @@ export class Simulation {
 
       body.velocity.x += ax * halfDt;
       body.velocity.y += ay * halfDt;
-
       if (updateTrail) {
         let shouldAdd = false;
         const trail = body.trail;
-
         if (trail.length === 0) {
           shouldAdd = true;
         } else {
@@ -235,7 +233,6 @@ export class Simulation {
             x: body.position.x,
             y: body.position.y,
           });
-
           if (TRAIL_LENGTH !== -1 && trail.length > TRAIL_LENGTH) {
             trail.shift();
           }
@@ -250,7 +247,6 @@ export class Simulation {
    */
   _integrateVelocity(dt) {
     const halfDt = dt * 0.5;
-
     for (const body of this.bodies) {
       body.velocity.x += body.acceleration.x * halfDt;
       body.velocity.y += body.acceleration.y * halfDt;
@@ -271,26 +267,20 @@ export class Simulation {
     const generatedBodies = this.generatedBodiesBuffer;
 
     const deadBodies = new Set();
-
     for (let i = 0; i < n; i++) {
       const bi = bodies[i];
-
       if (deadBodies.has(bi)) continue;
 
       const searchRadius = bi.radius + SEARCH_PADDING;
       const neighbors = this.quadTree.query(bi.position.x, bi.position.y, searchRadius);
-
       for (const bj of neighbors) {
         if (bi === bj || deadBodies.has(bj)) continue;
-
         const dx = bj.position.x - bi.position.x;
         const dy = bj.position.y - bi.position.y;
         const rSum = bi.radius + bj.radius;
         const d2 = dx * dx + dy * dy;
-
         if (d2 < rSum * rSum) {
           const outcome = this.collisionResolver.computeOutcome(bi, bj);
-
           if (Array.isArray(outcome)) {
             for (const nb of outcome) {
               if (nb && Number.isFinite(nb.mass) && nb.mass > 0 && nb.radius > 0.5) {
@@ -320,7 +310,6 @@ export class Simulation {
       }
 
       let writeIdx = 0;
-
       for (let i = 0; i < n; i++) {
         if (!deadBodies.has(bodies[i])) {
           bodies[writeIdx++] = bodies[i];
@@ -328,7 +317,6 @@ export class Simulation {
       }
 
       bodies.length = writeIdx;
-
       for (const newBody of generatedBodies) {
         if (bodies.length < MAX_BODIES) {
           bodies.push(newBody);
