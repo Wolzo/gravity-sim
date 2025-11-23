@@ -1,10 +1,14 @@
-import { GRAVITY_CONSTANT, SOFTENING, TRAIL_LENGTH } from './config.js';
+import {
+  GRAVITY_CONSTANT,
+  SOFTENING,
+  TRAIL_LENGTH,
+  MAX_BODIES,
+  SEARCH_PADDING,
+  TRAIL_INTERVAL,
+  MIN_TRAIL_DISTANCE_SQ,
+} from './config.js';
 import { CollisionResolver } from './collisionResolver.js';
 import { QuadTree } from './quadtree.js';
-
-const MAX_BODIES = 400;
-const THETA = 0.5; // Barnes-Hut opening angle threshold
-const SEARCH_PADDING = 500;
 
 /**
  * Core N-body gravity simulation.
@@ -19,11 +23,14 @@ export class Simulation {
     this.time = 0;
     this.collisionCount = 0;
 
+    this.stepsSinceLastTrail = 0;
+
     this.debugEnabled = false;
     this.debugCollisions = [];
     this.maxDebugCollisions = 200;
 
-    this.quadTree = null;
+    this.quadTree = new QuadTree({ x: 0, y: 0, width: 1, height: 1 });
+    this.generatedBodiesBuffer = [];
 
     this.collisionResolver = new CollisionResolver({
       G: this.G,
@@ -73,7 +80,14 @@ export class Simulation {
       return;
     }
 
-    this._integratePosition(dt);
+    this.stepsSinceLastTrail++;
+
+    const tryUpdateTrail = this.stepsSinceLastTrail >= TRAIL_INTERVAL;
+    if (tryUpdateTrail) {
+      this.stepsSinceLastTrail = 0;
+    }
+
+    this._integratePosition(dt, tryUpdateTrail);
     this._computeForces();
     this._integrateVelocity(dt);
     this._resolveCollisions();
@@ -166,7 +180,7 @@ export class Simulation {
       height: height,
     };
 
-    this.quadTree = new QuadTree(bounds, THETA);
+    this.quadTree.reset(bounds);
     for (let i = 0; i < count; i++) {
       this.quadTree.insert(bodies[i]);
     }
@@ -185,7 +199,7 @@ export class Simulation {
    * r(t+dt) = r(t) + v(t)dt + 0.5 * a(t) * dt^2
    * v(t+0.5dt) = v(t) + 0.5 * a(t) * dt
    */
-  _integratePosition(dt) {
+  _integratePosition(dt, updateTrail) {
     const halfDt = dt * 0.5;
     const dtSqHalf = dt * dt * 0.5;
 
@@ -199,13 +213,31 @@ export class Simulation {
       body.velocity.x += ax * halfDt;
       body.velocity.y += ay * halfDt;
 
-      body.trail.push({
-        x: body.position.x,
-        y: body.position.y,
-      });
+      if (updateTrail) {
+        let shouldAdd = false;
+        const trail = body.trail;
 
-      if (TRAIL_LENGTH !== -1 && body.trail.length > TRAIL_LENGTH) {
-        body.trail.shift();
+        if (trail.length === 0) {
+          shouldAdd = true;
+        } else {
+          const last = trail[trail.length - 1];
+          const dx = body.position.x - last.x;
+          const dy = body.position.y - last.y;
+          if (dx * dx + dy * dy > MIN_TRAIL_DISTANCE_SQ) {
+            shouldAdd = true;
+          }
+        }
+
+        if (shouldAdd) {
+          trail.push({
+            x: body.position.x,
+            y: body.position.y,
+          });
+
+          if (TRAIL_LENGTH !== -1 && trail.length > TRAIL_LENGTH) {
+            trail.shift();
+          }
+        }
       }
     }
   }
@@ -225,6 +257,7 @@ export class Simulation {
 
   /**
    * Detect and resolve collisions using QuadTree for broad-phase.
+   * Optimized with persistent buffers and in-place array compaction.
    */
   _resolveCollisions() {
     const bodies = this.bodies;
@@ -232,11 +265,14 @@ export class Simulation {
 
     if (!this.quadTree) return;
 
+    this.generatedBodiesBuffer.length = 0;
+    const generatedBodies = this.generatedBodiesBuffer;
+
     const deadBodies = new Set();
-    const generatedBodies = [];
 
     for (let i = 0; i < n; i++) {
       const bi = bodies[i];
+
       if (deadBodies.has(bi)) continue;
 
       const searchRadius = bi.radius + SEARCH_PADDING;
@@ -264,24 +300,28 @@ export class Simulation {
           deadBodies.add(bi);
           deadBodies.add(bj);
           this.collisionCount++;
+
           break;
         }
       }
     }
 
     if (deadBodies.size > 0 || generatedBodies.length > 0) {
-      const nextBodies = [];
+      let writeIdx = 0;
+
       for (let i = 0; i < n; i++) {
         if (!deadBodies.has(bodies[i])) {
-          nextBodies.push(bodies[i]);
+          bodies[writeIdx++] = bodies[i];
         }
       }
+
+      bodies.length = writeIdx;
+
       for (const newBody of generatedBodies) {
-        if (nextBodies.length < MAX_BODIES) {
-          nextBodies.push(newBody);
+        if (bodies.length < MAX_BODIES) {
+          bodies.push(newBody);
         }
       }
-      this.bodies = nextBodies;
     }
   }
 }

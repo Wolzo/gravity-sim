@@ -1,16 +1,18 @@
-import { GRAVITY_CONSTANT, SOFTENING, radiusFromMass, massFromRadius } from './config.js';
+import {
+  GRAVITY_CONSTANT,
+  SOFTENING,
+  MAX_FRAGMENTS,
+  radiusFromMass,
+  massFromRadius,
+  DEBRIS_EXTRA_KICK,
+  MASS_RATIO_BIG,
+  ALPHA_MERGE,
+} from './config.js';
 import { Vec2 } from './vector2.js';
 import { Body } from './body.js';
 import { createDebrisShape } from './debrisShapes.js';
 import { computeEscapeVelocity } from '../utils/physicsUtils.js';
 import { clamp } from '../utils/utils.js';
-
-// Tuning constants for cinematic fragmentation
-const DEBRIS_EXTRA_KICK = 5.0; // multiplier for fragment ejection speed
-const MASS_RATIO_BIG = 4; // above this, treat collision as big–small
-const ALPHA_MERGE = 0.25; // below this, always inelastic merge
-
-const MAX_FRAGMENTS = 30;
 
 /**
  * Handles classification and resolution of pair-wise collisions.

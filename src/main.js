@@ -62,6 +62,7 @@ function loop(now) {
     if (hud.isRunning()) {
       simulation.step(FIXED_TIME_STEP);
     }
+
     accumulator -= FIXED_TIME_STEP;
     steps++;
   }

@@ -1,6 +1,5 @@
 import { Vec2 } from './vector2.js';
-
-const MAX_DEPTH = 16;
+import { MAX_DEPTH } from './config.js';
 
 class Node {
   constructor(x, y, size, depth) {
@@ -14,6 +13,49 @@ class Node {
 
     this.body = null; // Stores body if this is a leaf node
     this.children = null; // Stores 4 sub-nodes if this is an internal node
+  }
+
+  static pool = [];
+
+  static pop(x, y, size, depth) {
+    const node = this.pool.pop();
+    if (node) {
+      node.reset(x, y, size, depth);
+      return node;
+    }
+    return new Node(x, y, size, depth);
+  }
+
+  static push(node) {
+    // Return node and its children to the pool
+    node.reclaim();
+  }
+
+  /**
+   * Resets the node state for reuse.
+   */
+  reset(x, y, size, depth) {
+    this.x = x;
+    this.y = y;
+    this.size = size;
+    this.depth = depth;
+    this.mass = 0;
+    this.centerOfMass = new Vec2(0, 0); // Note: Allocates once per Node life
+    this.body = null;
+    this.children = null;
+  }
+
+  /**
+   * Recursively pushes this node and children back to the pool.
+   */
+  reclaim() {
+    if (this.children) {
+      for (const child of this.children) {
+        child.reclaim();
+      }
+      this.children = null;
+    }
+    Node.pool.push(this);
   }
 
   insert(body) {
@@ -60,10 +102,10 @@ class Node {
 
     // Create 4 children: NW, NE, SW, SE
     this.children = [
-      new Node(this.x, this.y, half, nextDepth),
-      new Node(this.x + half, this.y, half, nextDepth),
-      new Node(this.x, this.y + half, half, nextDepth),
-      new Node(this.x + half, this.y + half, half, nextDepth),
+      Node.pop(this.x, this.y, half, nextDepth),
+      Node.pop(this.x + half, this.y, half, nextDepth),
+      Node.pop(this.x, this.y + half, half, nextDepth),
+      Node.pop(this.x + half, this.y + half, half, nextDepth),
     ];
   }
 
@@ -120,11 +162,25 @@ class Node {
 }
 
 export class QuadTree {
-  constructor(bounds, theta = 0.5) {
-    // Ensure the tree area is square
-    const size = Math.max(bounds.width, bounds.height);
-    this.root = new Node(bounds.x, bounds.y, size, 0);
+  cconstructor(bounds, theta = 0.5) {
     this.theta = theta;
+    this.root = null;
+    // Initial setup
+    this.reset(bounds);
+  }
+
+  /**
+   * Clears the tree and resets bounds without allocating new memory.
+   */
+  reset(bounds) {
+    // If root exists, recycle it and its children
+    if (this.root) {
+      Node.push(this.root);
+    }
+
+    const size = Math.max(bounds.width, bounds.height);
+    // Get a fresh root from the pool
+    this.root = Node.pop(bounds.x, bounds.y, size, 0);
   }
 
   insert(body) {
