@@ -5,7 +5,7 @@
 export class Renderer {
   constructor(canvas, simulation, camera) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
+    this.ctx = canvas.getContext('2d', { alpha: false });
     this.simulation = simulation;
     this.camera = camera;
     this.dpr = window.devicePixelRatio || 1;
@@ -87,7 +87,7 @@ export class Renderer {
 
     if (isSelected) {
       ctx.save();
-      ctx.lineWidth = 2 / zoom;
+      ctx.lineWidth = 1.8;
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -97,25 +97,34 @@ export class Renderer {
   }
 
   _drawTrail(body, zoom) {
-    const { ctx } = this;
-    if (!body.trail || body.trail.length < 2) return;
+    const trail = body.trail;
+    const len = trail.length;
+    if (len < 2) return;
 
-    ctx.save();
-    ctx.globalAlpha = 0.75;
-    ctx.lineWidth = 1.8 / zoom;
+    const { ctx } = this;
+
+    ctx.lineWidth = 2;
     ctx.strokeStyle = body.color || '#ffffff';
 
-    ctx.beginPath();
-    const first = body.trail[0];
-    ctx.moveTo(first.x, first.y);
+    const TARGET_SEGMENTS = 500;
+    let stride = 1;
 
-    for (let i = 1; i < body.trail.length; i++) {
-      const p = body.trail[i];
-      ctx.lineTo(p.x, p.y);
+    if (len > TARGET_SEGMENTS) {
+      stride = Math.floor(len / TARGET_SEGMENTS);
     }
 
+    if (zoom < 0.5) stride *= 2;
+    if (zoom < 0.1) stride *= 4;
+
+    ctx.beginPath();
+    ctx.moveTo(trail[0].x, trail[0].y);
+
+    for (let i = stride; i < len; i += stride) {
+      ctx.lineTo(trail[i].x, trail[i].y);
+    }
+
+    ctx.lineTo(trail[len - 1].x, trail[len - 1].y);
     ctx.stroke();
-    ctx.restore();
   }
 
   _drawDebrisShape(ctx, body, x, y, radius) {

@@ -12,7 +12,7 @@ export const SOFTENING = 8;
  * Max number of trail points stored per body.
  * -1 = unlimited (useful for debugging, but can grow unbounded in memory).
  */
-export const TRAIL_LENGTH = 1000;
+export const TRAIL_LENGTH = -1;
 
 /**
  * Maximum time step allowed per frame for numerical stability.
