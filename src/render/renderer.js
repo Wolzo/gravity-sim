@@ -113,17 +113,32 @@ export class Renderer {
       stride = Math.floor(len / TARGET_SEGMENTS);
     }
 
-    if (zoom < 0.5) stride *= 2;
-    if (zoom < 0.1) stride *= 4;
+    if (stride > 16) stride = 16;
+
+    if (zoom < 0.1) stride *= 2;
 
     ctx.beginPath();
     ctx.moveTo(trail[0].x, trail[0].y);
 
-    for (let i = stride; i < len; i += stride) {
-      ctx.lineTo(trail[i].x, trail[i].y);
+    let i = 0;
+    while (i < len - stride) {
+      const nextIndex = i + stride;
+      if (stride > 1) {
+        const midIndex = Math.floor((i + nextIndex) / 2);
+        const pMid = trail[midIndex];
+        const pNext = trail[nextIndex];
+
+        ctx.quadraticCurveTo(pMid.x, pMid.y, pNext.x, pNext.y);
+      } else {
+        const pNext = trail[nextIndex];
+        ctx.lineTo(pNext.x, pNext.y);
+      }
+
+      i += stride;
     }
 
     ctx.lineTo(trail[len - 1].x, trail[len - 1].y);
+
     ctx.stroke();
   }
 
