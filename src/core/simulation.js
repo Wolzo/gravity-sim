@@ -1,7 +1,9 @@
 import { GRAVITY_CONSTANT, SOFTENING, TRAIL_LENGTH } from './config.js';
 import { CollisionResolver } from './collisionResolver.js';
+import { QuadTree } from './quadtree.js';
 
 const MAX_BODIES = 400;
+const THETA = 0.5; // Barnes-Hut opening angle threshold
 
 /**
  * Core N-body gravity simulation.
@@ -20,8 +22,6 @@ export class Simulation {
     this.debugCollisions = [];
     this.maxDebugCollisions = 200;
 
-    // CollisionResolver is responsible for classifying and resolving
-    // pair-wise collisions (merge, big–small, mutual fragmentation).
     this.collisionResolver = new CollisionResolver({
       G: this.G,
       softening: this.softening,
@@ -29,8 +29,6 @@ export class Simulation {
       recordDebug: (info) => this._recordCollisionDebug(info),
     });
   }
-
-  // ---- Public API ---------------------------------------------------------
 
   addBody(body) {
     if (this.bodies.length >= MAX_BODIES) {
@@ -96,8 +94,6 @@ export class Simulation {
     };
   }
 
-  // ---- Debug API ---------------------------------------------------------
-
   enableCollisionDebug({ max = 200, reset = true } = {}) {
     this.debugEnabled = true;
     if (reset) {
@@ -115,7 +111,6 @@ export class Simulation {
   }
 
   getCollisionDebugSnapshot() {
-    // Return a shallow copy to avoid external mutation
     return this.debugCollisions.slice();
   }
 
@@ -132,55 +127,56 @@ export class Simulation {
     }
   }
 
-  // ---- Physics core ------------------------------------------------------
-
   /**
-   * Compute gravitational accelerations between all bodies using
-   * Newton's law of universal gravitation with a softening term.
+   * Calculates gravitational forces using Barnes-Hut algorithm (O(N log N)).
    */
   _computeForces() {
     const bodies = this.bodies;
-    const n = bodies.length;
+    const count = bodies.length;
 
-    for (let i = 0; i < n; i++) {
-      bodies[i].resetAcceleration();
+    if (count === 0) return;
+
+    // 1. Calculate world bounds
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+
+    for (let i = 0; i < count; i++) {
+      const b = bodies[i];
+      b.resetAcceleration();
+
+      if (b.position.x < minX) minX = b.position.x;
+      if (b.position.y < minY) minY = b.position.y;
+      if (b.position.x > maxX) maxX = b.position.x;
+      if (b.position.y > maxY) maxY = b.position.y;
     }
 
-    const G = this.G;
-    const soft2 = this.softening * this.softening;
+    // Add padding to avoid edge cases
+    const padding = 100;
+    const width = maxX - minX + padding * 2;
+    const height = maxY - minY + padding * 2;
 
-    for (let i = 0; i < n; i++) {
-      const bi = bodies[i];
-      const pi = bi.position;
-      const ai = bi.acceleration;
-      const mi = bi.mass;
+    const bounds = {
+      x: minX - padding,
+      y: minY - padding,
+      width: width,
+      height: height,
+    };
 
-      const pix = pi.x;
-      const piy = pi.y;
+    // 2. Build QuadTree
+    const tree = new QuadTree(bounds, THETA);
+    for (let i = 0; i < count; i++) {
+      tree.insert(bodies[i]);
+    }
 
-      for (let j = i + 1; j < n; j++) {
-        const bj = bodies[j];
-        const pj = bj.position;
-        const aj = bj.acceleration;
-        const mj = bj.mass;
+    // 3. Calculate forces
+    for (let i = 0; i < count; i++) {
+      const b = bodies[i];
+      const force = tree.calculateForce(b, this.G, this.softening);
 
-        const dx = pj.x - pix;
-        const dy = pj.y - piy;
-
-        const dist2 = dx * dx + dy * dy + soft2;
-
-        const inv = 1 / Math.sqrt(dist2);
-        const inv3 = inv * inv * inv;
-
-        const s_i = G * mj * inv3;
-        const s_j = G * mi * inv3;
-
-        ai.x += dx * s_i;
-        ai.y += dy * s_i;
-
-        aj.x -= dx * s_j;
-        aj.y -= dy * s_j;
-      }
+      b.acceleration.x += force.x;
+      b.acceleration.y += force.y;
     }
   }
 
