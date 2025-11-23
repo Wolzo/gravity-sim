@@ -1,6 +1,6 @@
 /**
  * Minimal 2D renderer for the gravity simulation.
- * Optimized with View Culling for bodies and Adaptive Stride for trails.
+ * Style: Modern Flat with "Neon/Bloom" glow.
  */
 export class Renderer {
   constructor(canvas, simulation, camera) {
@@ -23,7 +23,7 @@ export class Renderer {
     this.canvas.width = rect.width * this.dpr;
     this.canvas.height = rect.height * this.dpr;
 
-    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.imageSmoothingEnabled = true;
   }
 
   draw() {
@@ -33,7 +33,7 @@ export class Renderer {
 
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#050816';
+    ctx.fillStyle = '#08090c';
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
 
@@ -45,7 +45,7 @@ export class Renderer {
 
     ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, -camX * dpr * zoom, -camY * dpr * zoom);
 
-    const margin = 100 / zoom;
+    const margin = 200 / zoom;
     const viewLeft = camX - margin;
     const viewTop = camY - margin;
     const viewRight = camX + width / zoom + margin;
@@ -56,7 +56,7 @@ export class Renderer {
 
     if (fadingTrails) {
       for (const ft of fadingTrails) {
-        this._drawPolyLine(ft.points, ft.color, ft.life, zoom);
+        this._drawPolyLine(ft.points, ft.color, ft.life * 0.4, zoom, false);
       }
     }
 
@@ -85,20 +85,47 @@ export class Renderer {
     const y = body.position.y;
     const radius = body.radius;
 
-    ctx.fillStyle = body.color || '#ffffff';
+    const color = body.color || '#ffffff';
+
+    const screenRadius = radius * zoom;
 
     if (body.isDebris && body.shape) {
+      ctx.fillStyle = color;
       this._drawDebrisShape(ctx, body, x, y, radius);
-    } else {
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fill();
+      return;
     }
+
+    if (screenRadius > 2) {
+      ctx.beginPath();
+      const atmoRadius = radius * 1.3;
+      ctx.arc(x, y, atmoRadius, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.2;
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+    }
+
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+
+    if (screenRadius > 3) {
+      ctx.shadowBlur = Math.min(30, screenRadius * 2);
+      ctx.shadowColor = color;
+    } else {
+      ctx.shadowBlur = 0;
+    }
+
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
 
     if (isSelected) {
       ctx.save();
-      ctx.lineWidth = 2.0 / zoom;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 1.0 / zoom;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.setLineDash([5 / zoom, 5 / zoom]);
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.stroke();
@@ -108,10 +135,10 @@ export class Renderer {
 
   _drawTrail(body, zoom) {
     if (body.trail.length < 2) return;
-    this._drawPolyLine(body.trail, body.color, 0.5, zoom);
+    this._drawPolyLine(body.trail, body.color, 0.4, zoom, true);
   }
 
-  _drawPolyLine(points, color, opacity, zoom) {
+  _drawPolyLine(points, color, opacity, zoom, isLiving) {
     const len = points.length;
     if (len < 2) return;
 
@@ -128,9 +155,17 @@ export class Renderer {
       stride = Math.ceil(len / maxVerts);
     }
 
-    ctx.lineWidth = 1.5 / (zoom * 1.8);
+    ctx.lineWidth = (isLiving ? 1.5 : 1.0) / zoom;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
     ctx.strokeStyle = color || '#ffffff';
     ctx.globalAlpha = opacity;
+
+    /*if (zoom > 0.5 && isLiving) {
+      ctx.shadowBlur = 5;
+      ctx.shadowColor = color;
+    }*/
 
     ctx.beginPath();
     let firstPoint = true;
@@ -146,14 +181,16 @@ export class Renderer {
     }
 
     ctx.stroke();
+
+    // Reset
     ctx.globalAlpha = 1.0;
+    ctx.shadowBlur = 0;
   }
 
   _drawDebrisShape(ctx, body, x, y, radius) {
     const shape = body.shape || {};
     const sides = Math.max(3, shape.sides || 6);
     const angle = shape.angle || 0;
-    const vertexJitter = shape.vertexJitter || null;
 
     ctx.save();
     ctx.translate(x, y);
@@ -162,10 +199,8 @@ export class Renderer {
     ctx.beginPath();
     for (let i = 0; i < sides; i++) {
       const t = (i / sides) * Math.PI * 2;
-      const jitter = vertexJitter ? vertexJitter[i % vertexJitter.length] : 1.0;
-
-      const px = Math.cos(t) * radius * jitter;
-      const py = Math.sin(t) * radius * jitter;
+      const px = Math.cos(t) * radius;
+      const py = Math.sin(t) * radius;
 
       if (i === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);

@@ -5,6 +5,8 @@ import { initHud } from './ui/hud.js';
 import { SEEDS, DEFAULT_SEED_KEY } from './seeds/index.js';
 import { CreationController } from './core/creations.js';
 import { Camera } from './core/camera.js';
+import { Vec2 } from './core/vector2.js';
+import { QuadTree } from './core/quadtree.js';
 
 const canvas = document.getElementById('simCanvas');
 
@@ -14,6 +16,9 @@ const canvas = document.getElementById('simCanvas');
  * - applies the default seed
  * - starts the main loop.
  */
+
+Vec2.warmup(20000);
+QuadTree.warmup(20000);
 
 const simulation = new Simulation();
 const camera = new Camera();
