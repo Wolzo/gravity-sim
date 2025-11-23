@@ -1,59 +1,34 @@
 import { seedSolarSystem } from './solarSystem.js';
-import { seedBinarySystem } from './binarySystem.js';
-import { seedAsteroidRing } from './asteroidRing.js';
-import { seedHeadOnClusters } from './headOnCluster.js';
-import { seedTripleChaos } from './tripleChaos.js';
-
-import { seedLowEnergyMerge } from './lowEnergyMerge.js';
-import { seedModerateFragmentation } from './moderateFragmentation.js';
-import { seedHighEnergyExplosion } from './highEnergyExplosion.js';
-import { seedBigSmallImpact } from './bigSmallImpact.js';
+import { seedGalaxy } from './galaxy.js';
+import { seedBinaryDisk } from './binaryDisk.js';
+import { seedGalacticCollision } from './galacticCollision.js';
+import { seedKesslerSyndrome } from './kesslerSyndrome.js';
 
 export const SEEDS = {
   solar: {
-    label: 'Solar system',
+    label: 'Solar System',
     apply: seedSolarSystem,
     enabled: true,
   },
-  binary: {
-    label: 'Binary system',
-    apply: seedBinarySystem,
+  galaxy: {
+    label: 'Spiral Galaxy',
+    apply: seedGalaxy,
     enabled: true,
   },
-  asteroidRing: {
-    label: 'Asteroid ring',
-    apply: seedAsteroidRing,
+  binaryDisk: {
+    label: 'Binary Star & Disk',
+    apply: seedBinaryDisk,
     enabled: true,
   },
-  headOnClusters: {
-    label: 'Head-on cluster',
-    apply: seedHeadOnClusters,
+  galacticCollision: {
+    label: 'Galactic Collision',
+    apply: seedGalacticCollision,
     enabled: true,
   },
-  tripleChaos: {
-    label: 'Chaotic triple system',
-    apply: seedTripleChaos,
+  kessler: {
+    label: 'Kessler Syndrome (Chaos)',
+    apply: seedKesslerSyndrome,
     enabled: true,
-  },
-  lowEnergyMerge: {
-    label: 'Test: low-energy merge',
-    apply: seedLowEnergyMerge,
-    enabled: false,
-  },
-  moderateFragmentation: {
-    label: 'Test: moderate fragmentation',
-    apply: seedModerateFragmentation,
-    enabled: false,
-  },
-  highEnergyExplosion: {
-    label: 'Test: high-energy explosion',
-    apply: seedHighEnergyExplosion,
-    enabled: true,
-  },
-  bigSmallImpact: {
-    label: 'Test: big vs small impact',
-    apply: seedBigSmallImpact,
-    enabled: false,
   },
 };
 

@@ -52,6 +52,13 @@ export class Renderer {
     const viewBottom = camY + height / zoom + margin;
 
     const bodies = this.simulation.bodies;
+    const fadingTrails = this.simulation.fadingTrails;
+
+    if (fadingTrails) {
+      for (const ft of fadingTrails) {
+        this._drawPolyLine(ft.points, ft.color, ft.life, zoom);
+      }
+    }
 
     for (const body of bodies) {
       this._drawTrail(body, zoom);
@@ -100,8 +107,12 @@ export class Renderer {
   }
 
   _drawTrail(body, zoom) {
-    const trail = body.trail;
-    const len = trail.length;
+    if (body.trail.length < 2) return;
+    this._drawPolyLine(body.trail, body.color, 0.5, zoom);
+  }
+
+  _drawPolyLine(points, color, opacity, zoom) {
+    const len = points.length;
     if (len < 2) return;
 
     const { ctx } = this;
@@ -118,15 +129,14 @@ export class Renderer {
     }
 
     ctx.lineWidth = 1.5 / (zoom * 1.8);
-    ctx.strokeStyle = body.color || '#ffffff';
-    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = color || '#ffffff';
+    ctx.globalAlpha = opacity;
 
     ctx.beginPath();
-
     let firstPoint = true;
 
     for (let i = 0; i < len; i += stride) {
-      const p = trail[i];
+      const p = points[i];
       if (firstPoint) {
         ctx.moveTo(p.x, p.y);
         firstPoint = false;
@@ -134,8 +144,6 @@ export class Renderer {
         ctx.lineTo(p.x, p.y);
       }
     }
-
-    ctx.lineTo(body.position.x, body.position.y);
 
     ctx.stroke();
     ctx.globalAlpha = 1.0;

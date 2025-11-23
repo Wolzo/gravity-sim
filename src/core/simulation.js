@@ -24,6 +24,7 @@ export class Simulation {
     this.collisionCount = 0;
 
     this.stepsSinceLastTrail = 0;
+    this.fadingTrails = [];
 
     this.debugEnabled = false;
     this.debugCollisions = [];
@@ -91,6 +92,7 @@ export class Simulation {
     this._computeForces();
     this._integrateVelocity(dt);
     this._resolveCollisions();
+    this._updateFadingTrails(dt);
 
     this.time += dt;
   }
@@ -307,6 +309,16 @@ export class Simulation {
     }
 
     if (deadBodies.size > 0 || generatedBodies.length > 0) {
+      for (const body of deadBodies) {
+        if (body.trail && body.trail.length > 2) {
+          this.fadingTrails.push({
+            points: body.trail,
+            color: body.color,
+            life: 1.0,
+          });
+        }
+      }
+
       let writeIdx = 0;
 
       for (let i = 0; i < n; i++) {
@@ -321,6 +333,17 @@ export class Simulation {
         if (bodies.length < MAX_BODIES) {
           bodies.push(newBody);
         }
+      }
+    }
+  }
+
+  _updateFadingTrails(dt) {
+    for (let i = this.fadingTrails.length - 1; i >= 0; i--) {
+      const trailObj = this.fadingTrails[i];
+      trailObj.life -= dt * 0.5;
+
+      if (trailObj.life <= 0) {
+        this.fadingTrails.splice(i, 1);
       }
     }
   }

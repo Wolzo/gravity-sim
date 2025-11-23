@@ -3,88 +3,87 @@ import { Vec2 } from '../core/vector2.js';
 import { configureCameraForSeed } from '../utils/utils.js';
 import {
   radiusFromMass,
+  massFromRadius,
   GRAVITY_CONSTANT,
-  EARTH_RADIUS_UNITS,
   EARTH_MASS_UNITS,
 } from '../core/config.js';
 
-/**
- * Initializes a semi-realistic solar system:
- * - Sun at the origin
- * - planet distances scaled from their semi-major axes in AU
- * - masses proportional to real mass ratios
- * - radius derived from mass using the same mass–radius law as user-created bodies.
- * Uses the simulation's G to compute circular orbital velocities.
- */
 export function seedSolarSystem(renderer) {
   const simulation = renderer?.simulation;
   if (!simulation) return;
 
   simulation.clear();
 
-  const EARTH_RADIUS = EARTH_RADIUS_UNITS;
-  const EARTH_MASS = EARTH_MASS_UNITS;
+  const G = simulation.G || GRAVITY_CONSTANT;
+  const SUN_MASS = EARTH_MASS_UNITS * 3000;
+  const ORBIT_SCALE = 3500;
 
-  const SUN_MASS_FACTOR = 1000;
-  const SUN_MASS = EARTH_MASS * SUN_MASS_FACTOR;
-
-  const ORBIT_SCALE = 3000;
-
-  const G = typeof simulation.G === 'number' ? simulation.G : GRAVITY_CONSTANT;
-
-  const planets = [
-    { name: 'Mercury', aAU: 0.39, massRel: 0.055, color: '#c2b28f' },
-    { name: 'Venus', aAU: 0.72, massRel: 0.815, color: '#e0c896' },
-    { name: 'Earth', aAU: 1.0, massRel: 1.0, color: '#6fa8ff' },
-    { name: 'Mars', aAU: 1.52, massRel: 0.107, color: '#ff7043' },
-    { name: 'Jupiter', aAU: 5.2, massRel: 317.8, color: '#f2d1a0' },
-    { name: 'Saturn', aAU: 9.58, massRel: 95.2, color: '#f5e2b8' },
-    { name: 'Uranus', aAU: 19.2, massRel: 14.5, color: '#9ad9ff' },
-    { name: 'Neptune', aAU: 30.1, massRel: 17.1, color: '#5b8cff' },
-  ];
-
-  const sunRadius = radiusFromMass(SUN_MASS);
-
+  // 1. The Sun
   simulation.addBody(
     new Body({
       position: new Vec2(0, 0),
       velocity: new Vec2(0, 0),
       mass: SUN_MASS,
-      radius: sunRadius,
+      radius: radiusFromMass(SUN_MASS),
       color: '#ffdd88',
       name: 'Sun',
     })
   );
 
-  for (const p of planets) {
-    const distance = p.aAU * ORBIT_SCALE;
+  // 2. Planets
+  const planets = [
+    { name: 'Mercury', a: 0.39, m: 0.055, c: '#a67d5d' },
+    { name: 'Venus', a: 0.72, m: 0.815, c: '#e3bb76' },
+    { name: 'Earth', a: 1.0, m: 1.0, c: '#466d9d' },
+    { name: 'Mars', a: 1.52, m: 0.11, c: '#d14a28' },
+    { name: 'Jupiter', a: 5.2, m: 317.8, c: '#d9c496' },
+    { name: 'Saturn', a: 9.5, m: 95.2, c: '#eaddb6' },
+    { name: 'Uranus', a: 19.2, m: 14.5, c: '#9ad9ff' },
+    { name: 'Neptune', a: 30.1, m: 17.1, c: '#3e54e8' },
+  ];
 
+  planets.forEach((p) => {
+    const r = p.a * ORBIT_SCALE;
     const angle = Math.random() * Math.PI * 2;
-    const x = distance * Math.cos(angle);
-    const y = distance * Math.sin(angle);
+    const pos = new Vec2(r * Math.cos(angle), r * Math.sin(angle));
 
-    const orbitalSpeed = Math.sqrt((G * SUN_MASS) / distance);
-    const vx = -orbitalSpeed * Math.sin(angle);
-    const vy = orbitalSpeed * Math.cos(angle);
+    // Circular orbit velocity: v = sqrt(GM/r)
+    const vMag = Math.sqrt((G * SUN_MASS) / r);
+    const vel = new Vec2(-Math.sin(angle) * vMag, Math.cos(angle) * vMag);
 
-    const mass = EARTH_MASS * p.massRel;
-
-    const radius = radiusFromMass(mass);
-
+    const mass = EARTH_MASS_UNITS * p.m;
     simulation.addBody(
       new Body({
-        position: new Vec2(x, y),
-        velocity: new Vec2(vx, vy),
+        position: pos,
+        velocity: vel,
         mass,
-        radius,
-        color: p.color,
+        radius: radiusFromMass(mass),
+        color: p.c,
         name: p.name,
+      })
+    );
+  });
+
+  // 3. Asteroid Belt (Between Mars and Jupiter)
+  const BELT_COUNT = 150;
+  for (let i = 0; i < BELT_COUNT; i++) {
+    const dist = (2.2 + Math.random() * 1.0) * ORBIT_SCALE;
+    const angle = Math.random() * Math.PI * 2;
+    const pos = new Vec2(dist * Math.cos(angle), dist * Math.sin(angle));
+    const vMag = Math.sqrt((G * SUN_MASS) / dist);
+    const vel = new Vec2(-Math.sin(angle) * vMag, Math.cos(angle) * vMag);
+
+    const r = 1.5 + Math.random() * 2;
+    simulation.addBody(
+      new Body({
+        position: pos,
+        velocity: vel,
+        mass: massFromRadius(r),
+        radius: r,
+        color: '#6b6b6b',
       })
     );
   }
 
-  configureCameraForSeed(renderer, {
-    center: new Vec2(0, 0),
-    zoom: 0.15,
-  });
+  configureCameraForSeed(renderer, { center: new Vec2(0, 0), zoom: 0.12 });
 }

@@ -32,10 +32,6 @@ export class CollisionResolver {
     this.recordDebug = recordDebug;
   }
 
-  /**
-   * Compute the outcome of a collision between b1 and b2.
-   * Returns an array of new bodies replacing the pair.
-   */
   computeOutcome(b1, b2) {
     const m1 = b1.mass;
     const m2 = b2.mass;
@@ -70,7 +66,6 @@ export class CollisionResolver {
       const relVy = v1.y - v2.y;
       const speedRel = Math.hypot(relVx, relVy);
 
-      // Center-of-mass velocity: (m1*v1 + m2*v2) / totalMass
       vcm.set((v1.x * m1 + v2.x * m2) / totalMass, (v1.y * m1 + v2.y * m2) / totalMass);
 
       const R_eff = Math.max(b1.radius, b2.radius);
@@ -79,24 +74,13 @@ export class CollisionResolver {
       const massRatio = m1 >= m2 ? m1 / m2 : m2 / m1;
       const time = this.getTime() || 0;
 
-      const baseDebug = {
-        time,
-        m1,
-        m2,
-        totalMass,
-        speedRel,
-        vEsc,
-        alpha,
-        outcome: '',
-      };
+      const baseDebug = { time, m1, m2, totalMass, speedRel, vEsc, alpha, outcome: '' };
 
-      // 1. Low-energy impact: pure inelastic merge
       if (alpha < ALPHA_MERGE) {
         this.recordDebug({ ...baseDebug, outcome: 'mergeLowEnergy' });
         return [this._createMergedBody(b1, b2)];
       }
 
-      // 2. Big–small impact
       if (massRatio > MASS_RATIO_BIG) {
         const big = m1 >= m2 ? b1 : b2;
         const small = big === b1 ? b2 : b1;
@@ -104,7 +88,6 @@ export class CollisionResolver {
         return this._collisionBigSmall(big, small, alpha, normal, tangent, vcm);
       }
 
-      // 3. High-energy impact (similar masses)
       this.recordDebug({ ...baseDebug, outcome: 'fragmentBoth' });
       return this._fragmentBoth(b1, b2, alpha, normal, tangent, vcm, time);
     } finally {
@@ -121,7 +104,8 @@ export class CollisionResolver {
     const x = (bi.position.x * bi.mass + bj.position.x * bj.mass) / totalMass;
     const y = (bi.position.y * bi.mass + bj.position.y * bj.mass) / totalMass;
 
-    const newRadius = radiusFromMass(totalMass);
+    const newRadius = Math.sqrt(bi.radius * bi.radius + bj.radius * bj.radius);
+
     const dominant = bi.mass >= bj.mass ? bi : bj;
 
     const mergedBody = new Body({
@@ -133,10 +117,16 @@ export class CollisionResolver {
       name: dominant.name,
     });
 
-    const sourceTrail = bi.trail.length > bj.trail.length ? bi.trail : bj.trail;
-    const startIdx = Math.max(0, sourceTrail.length - TRAIL_LENGTH > 0 ? TRAIL_LENGTH : 500);
-    mergedBody.trail = sourceTrail.slice(startIdx);
+    const sourceTrail = dominant.trail;
 
+    if (sourceTrail.length > TRAIL_LENGTH) {
+      const startIdx = sourceTrail.length - TRAIL_LENGTH;
+      mergedBody.trail = sourceTrail.slice(startIdx);
+    } else {
+      mergedBody.trail = sourceTrail.slice();
+    }
+
+    dominant.trail = [];
     return mergedBody;
   }
 
@@ -144,12 +134,13 @@ export class CollisionResolver {
     const mBig = big.mass;
     const mSmall = small.mass;
     const totalMass = mBig + mSmall;
-    const t = clamp((alpha - 0.6) / (2.0 - 0.6), 0, 1);
 
+    const t = clamp((alpha - 0.6) / (2.0 - 0.6), 0, 1);
     const fracSmallToFragments = 0.3 + 0.6 * t;
     const fragmentMassTotal = mSmall * fracSmallToFragments;
     const mergedMass = mBig + mSmall - fragmentMassTotal;
-    const mergedRadius = radiusFromMass(mergedMass);
+
+    const mergedRadius = big.radius * Math.sqrt(mergedMass / mBig);
 
     const dir = Vec2.pop();
     dir.set(small.position.x - big.position.x, small.position.y - big.position.y);
@@ -163,7 +154,6 @@ export class CollisionResolver {
 
     const contactPointX = big.position.x + dir.x * big.radius;
     const contactPointY = big.position.y + dir.y * big.radius;
-
     Vec2.push(dir);
 
     const comX = (big.position.x * mBig + small.position.x * mSmall) / totalMass;
@@ -177,7 +167,18 @@ export class CollisionResolver {
       color: big.color,
       name: big.name,
     });
-    mergedBody.trail = big.trail.length >= small.trail.length ? [...big.trail] : [...small.trail];
+
+    const sourceTrail = big.trail;
+    const HISTORY_TO_KEEP = 1000;
+
+    if (sourceTrail.length > HISTORY_TO_KEEP) {
+      const startIdx = sourceTrail.length - HISTORY_TO_KEEP;
+      mergedBody.trail = sourceTrail.slice(startIdx);
+    } else {
+      mergedBody.trail = sourceTrail.slice();
+    }
+
+    big.trail = [];
 
     const newBodies = [mergedBody];
 
@@ -189,7 +190,6 @@ export class CollisionResolver {
       const baseAngle = Math.atan2(normal.y, normal.x) + Math.PI;
 
       const dirFrag = Vec2.pop();
-
       for (let k = 0; k < fragCount; k++) {
         const jitterAngle = (Math.random() - 0.5) * (Math.PI / fragCount);
         const angle = baseAngle + (2 * Math.PI * k) / fragCount + jitterAngle;
@@ -222,7 +222,6 @@ export class CollisionResolver {
         frag.shape = createDebrisShape();
         newBodies.push(frag);
       }
-
       Vec2.push(dirFrag);
     }
 
@@ -261,6 +260,7 @@ export class CollisionResolver {
       });
       core1.trail = [...b1.trail];
       core1.mergeCooldown = (time || 0) + 2.0;
+      b1.trail = [];
       newBodies.push(core1);
     }
 
@@ -275,6 +275,7 @@ export class CollisionResolver {
       });
       core2.trail = [...b2.trail];
       core2.mergeCooldown = (time || 0) + 2.0;
+      b2.trail = [];
       newBodies.push(core2);
     }
 
@@ -309,7 +310,6 @@ export class CollisionResolver {
     const baseAngle = Math.atan2(normal.y, normal.x);
 
     const dirFrag = Vec2.pop();
-
     for (let k = 0; k < fragCount; k++) {
       const jitterAngle = (Math.random() - 0.5) * (Math.PI / fragCount);
       const angle = baseAngle + (2 * Math.PI * k) / fragCount + jitterAngle;
@@ -344,7 +344,6 @@ export class CollisionResolver {
       frag.shape = createDebrisShape();
       newBodies.push(frag);
     }
-
     Vec2.push(dirFrag);
 
     return newBodies;
