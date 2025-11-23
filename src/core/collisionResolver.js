@@ -1,4 +1,4 @@
-import { GRAVITY_CONSTANT, SOFTENING, radiusFromMass } from './config.js';
+import { GRAVITY_CONSTANT, SOFTENING, radiusFromMass, massFromRadius } from './config.js';
 import { Vec2 } from './vector2.js';
 import { Body } from './body.js';
 import { createDebrisShape } from './debrisShapes.js';
@@ -10,7 +10,7 @@ const DEBRIS_EXTRA_KICK = 5.0; // multiplier for fragment ejection speed
 const MASS_RATIO_BIG = 4; // above this, treat collision as big–small
 const ALPHA_MERGE = 0.25; // below this, always inelastic merge
 
-const MAX_FRAGMENTS = 15;
+const MAX_FRAGMENTS = 10;
 
 /**
  * Handles classification and resolution of pair-wise collisions.
@@ -208,6 +208,7 @@ export class CollisionResolver {
       color: big.color,
       name: big.name,
     });
+
     mergedBody.trail = big.trail.length >= small.trail.length ? [...big.trail] : [...small.trail];
 
     const newBodies = [mergedBody];
@@ -333,7 +334,15 @@ export class CollisionResolver {
       return newBodies;
     }
 
-    const fragCount = Math.min(MAX_FRAGMENTS, Math.max(6, Math.round(6 + alpha * 2)));
+    const MIN_FRAG_RADIUS = Math.max(1.2, 0.12 * Math.min(b1.radius, b2.radius));
+    const minFragMass = Math.max(massFromRadius(MIN_FRAG_RADIUS), 1e-8);
+    const maxByMass = Math.max(3, Math.floor(fragmentMassTotal / minFragMass));
+
+    const fragCount = Math.min(
+      MAX_FRAGMENTS,
+      Math.max(6, Math.min(maxByMass, Math.round(6 + alpha * 2)))
+    );
+
     const singleFragMass = fragmentMassTotal / fragCount;
 
     // Contact point between the two surfaces (not the global center of mass)
@@ -348,7 +357,15 @@ export class CollisionResolver {
     const contactPoint = new Vec2((surf1.x + surf2.x) / 2, (surf1.y + surf2.y) / 2);
 
     const baseOffset = Math.max(1, 0.6 * Math.min(b1.radius, b2.radius));
-    const baseKick = alpha * 0.7 * DEBRIS_EXTRA_KICK;
+    const dvx = b2.velocity.x - b1.velocity.x;
+    const dvy = b2.velocity.y - b1.velocity.y;
+    const vRelN = Math.abs(dvx * normal.x + dvy * normal.y);
+
+    const rLocal = Math.max(b1.radius + b2.radius, 1.0);
+    const vEscLocal = Math.sqrt((2 * this.G * (m1 + m2)) / rLocal);
+
+    const baseKickRaw = alpha * 0.7 * DEBRIS_EXTRA_KICK;
+    const baseKick = Math.min(baseKickRaw, vEscLocal + 0.8 * vRelN);
 
     const baseAngle = Math.atan2(normal.y, normal.x);
 

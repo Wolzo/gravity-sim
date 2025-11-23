@@ -11,9 +11,6 @@ package-lock.json
 dist/
 build/
 
-# Documentazione generata (se la generi con JSDoc)
-docs/api/
-
 # IDE / editor
 .vscode/
 .idea/

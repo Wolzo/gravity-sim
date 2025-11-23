@@ -15,9 +15,9 @@ export function seedHighEnergyExplosion(renderer) {
 
   const RADIUS = 14;
   const MASS = massFromRadius(RADIUS);
-  const SEPARATION = 200;
+  const SEPARATION = 500;
 
-  const speed = 6.0; // high relative speed
+  const speed = 100.0; // high relative speed
 
   simulation.addBody(
     new Body({

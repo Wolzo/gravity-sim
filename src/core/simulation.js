@@ -139,35 +139,47 @@ export class Simulation {
    * Newton's law of universal gravitation with a softening term.
    */
   _computeForces() {
-    const n = this.bodies.length;
+    const bodies = this.bodies;
+    const n = bodies.length;
 
     for (let i = 0; i < n; i++) {
-      this.bodies[i].resetAcceleration();
+      bodies[i].resetAcceleration();
     }
 
+    const G = this.G;
+    const soft2 = this.softening * this.softening;
+
     for (let i = 0; i < n; i++) {
-      const bi = this.bodies[i];
+      const bi = bodies[i];
+      const pi = bi.position;
+      const ai = bi.acceleration;
+      const mi = bi.mass;
+
+      const pix = pi.x;
+      const piy = pi.y;
 
       for (let j = i + 1; j < n; j++) {
-        const bj = this.bodies[j];
+        const bj = bodies[j];
+        const pj = bj.position;
+        const aj = bj.acceleration;
+        const mj = bj.mass;
 
-        const dx = bj.position.x - bi.position.x;
-        const dy = bj.position.y - bi.position.y;
+        const dx = pj.x - pix;
+        const dy = pj.y - piy;
 
-        const distSq = dx * dx + dy * dy + this.softening * this.softening;
-        const dist = Math.sqrt(distSq);
-        const invDist3 = 1.0 / (distSq * dist); // 1 / r^3
+        const dist2 = dx * dx + dy * dy + soft2;
 
-        const factor = this.G * invDist3;
+        const inv = 1 / Math.sqrt(dist2);
+        const inv3 = inv * inv * inv;
 
-        const ax = factor * dx;
-        const ay = factor * dy;
+        const s_i = G * mj * inv3;
+        const s_j = G * mi * inv3;
 
-        bi.acceleration.x += ax * bj.mass;
-        bi.acceleration.y += ay * bj.mass;
+        ai.x += dx * s_i;
+        ai.y += dy * s_i;
 
-        bj.acceleration.x -= ax * bi.mass;
-        bj.acceleration.y -= ay * bi.mass;
+        aj.x -= dx * s_j;
+        aj.y -= dy * s_j;
       }
     }
   }
@@ -201,28 +213,39 @@ export class Simulation {
    * with zero or more new bodies produced by the CollisionResolver.
    */
   _resolveCollisions() {
-    const n = this.bodies.length;
+    const bodies = this.bodies;
+    const n = bodies.length;
     const alive = new Array(n).fill(true);
     const generatedBodies = [];
 
     for (let i = 0; i < n; i++) {
       if (!alive[i]) continue;
-      const bi = this.bodies[i];
+
+      const bi = bodies[i];
+      const pix = bi.position.x;
+      const piy = bi.position.y;
+      const ri = bi.radius;
 
       for (let j = i + 1; j < n; j++) {
         if (!alive[j]) continue;
-        const bj = this.bodies[j];
 
-        const dx = bj.position.x - bi.position.x;
-        const dy = bj.position.y - bi.position.y;
-        const dist = Math.hypot(dx, dy);
-        const minDist = bi.radius + bj.radius;
+        const bj = bodies[j];
+        const pjx = bj.position.x;
+        const pjy = bj.position.y;
+        const rj = bj.radius;
 
-        if (dist < minDist) {
+        const dx = pjx - pix;
+        const dy = pjy - piy;
+        const rSum = ri + rj;
+        const d2 = dx * dx + dy * dy;
+
+        if (d2 < rSum * rSum) {
           const outcome = this.collisionResolver.computeOutcome(bi, bj);
 
           if (Array.isArray(outcome)) {
-            for (const nb of outcome) {
+            for (let k = 0; k < outcome.length; k++) {
+              const nb = outcome[k];
+
               if (!nb) continue;
               if (!Number.isFinite(nb.mass) || nb.mass <= 0) continue;
               if (!Number.isFinite(nb.radius) || nb.radius <= 0.5) continue;
@@ -241,12 +264,12 @@ export class Simulation {
 
     const result = [];
     for (let i = 0; i < n; i++) {
-      if (alive[i]) result.push(this.bodies[i]);
+      if (alive[i]) result.push(bodies[i]);
     }
 
-    for (const nb of generatedBodies) {
+    for (let k = 0; k < generatedBodies.length; k++) {
       if (result.length >= MAX_BODIES) break;
-      result.push(nb);
+      result.push(generatedBodies[k]);
     }
 
     this.bodies = result;

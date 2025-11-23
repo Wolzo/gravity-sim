@@ -48,7 +48,7 @@ export const SEEDS = {
   highEnergyExplosion: {
     label: 'Test: high-energy explosion',
     apply: seedHighEnergyExplosion,
-    enabled: false,
+    enabled: true,
   },
   bigSmallImpact: {
     label: 'Test: big vs small impact',
