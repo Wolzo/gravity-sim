@@ -2,12 +2,13 @@ import { Vec2 } from './vector2.js';
 import { Body } from './body.js';
 import { massFromRadius } from './config.js';
 import { clamp } from '../utils/utils.js';
-
-const CREATION_STATES = {
-  IDLE: 'IDLE',
-  RADIUS: 'RADIUS',
-  VELOCITY: 'VELOCITY',
-};
+import {
+  CREATION_STATES,
+  CREATION_RADIUS_MAX,
+  CREATION_RADIUS_MIN,
+  CREATION_VELOCITY_MAX,
+  CREATION_VELOCITY_MIN,
+} from './config.js';
 
 /**
  * Handles interactive body creation on the canvas:
@@ -33,10 +34,10 @@ export class CreationController {
     this.onBodySelected = onBodySelected;
     this.selectedBody = null;
 
-    this.minRadius = 1;
-    this.maxRadius = 1000;
-    this.minArrowLength = 0;
-    this.maxArrowLength = 800;
+    this.minRadius = CREATION_RADIUS_MIN;
+    this.maxRadius = CREATION_RADIUS_MAX;
+    this.minArrowLength = CREATION_VELOCITY_MIN;
+    this.maxArrowLength = CREATION_VELOCITY_MAX;
 
     this.isPanning = false;
     this.lastPanScreen = null;
@@ -449,7 +450,7 @@ export class CreationController {
       const dy = mouseScreen.y - centerScreen.y;
       const len = Math.sqrt(dx * dx + dy * dy);
 
-      if (len > 0.0001) {
+      if (len > 10) {
         const clampedLen = clamp(len, this.minArrowLength, this.maxArrowLength);
         const ux = dx / len;
         const uy = dy / len;
@@ -469,7 +470,7 @@ export class CreationController {
         ctx.lineTo(endX, endY);
         ctx.stroke();
 
-        const headSize = 10;
+        const headSize = 8;
         ctx.beginPath();
         ctx.moveTo(endX, endY);
         ctx.lineTo(

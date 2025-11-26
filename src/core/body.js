@@ -19,6 +19,7 @@ export class Body {
     this.name = name == null ? generateRandomName() : name;
     this.acceleration = new Vec2(0, 0);
     this.trail = [];
+    this.collisionCooldown = 0; //not used
   }
 
   /**

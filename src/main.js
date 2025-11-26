@@ -62,8 +62,10 @@ function loop(now) {
 
   accumulator += rawDt * hud.getTimeScale();
 
+  const t1 = performance.now();
+
   let steps = 0;
-  while (accumulator >= FIXED_TIME_STEP && steps < 5) {
+  while (accumulator >= FIXED_TIME_STEP && steps < 2) {
     if (hud.isRunning()) {
       simulation.step(FIXED_TIME_STEP);
     }
@@ -72,7 +74,9 @@ function loop(now) {
     steps++;
   }
 
-  if (steps >= 5) {
+  const t2 = performance.now();
+
+  if (steps >= 2) {
     accumulator = 0;
   }
 
@@ -84,8 +88,23 @@ function loop(now) {
   }
 
   renderer.draw();
+
+  const t3 = performance.now();
+
   creation.drawPreview();
+
+  const t4 = performance.now();
+
   hud.updateHud(rawDt);
+
+  const t5 = performance.now();
+
+  if (Math.random() < 0.01) {
+    // Logga solo l'1% dei frame per non floodare
+    console.log(
+      `Physics: ${(t2 - t1).toFixed(2)}ms | Render: ${(t3 - t2).toFixed(2)}ms | Preview: ${(t4 - t3).toFixed(2)}ms | HUD: ${(t5 - t4).toFixed(2)}ms`
+    );
+  }
 
   requestAnimationFrame(loop);
 }

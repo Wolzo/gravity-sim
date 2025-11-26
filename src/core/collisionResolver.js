@@ -8,6 +8,7 @@ import {
   MASS_RATIO_BIG,
   ALPHA_MERGE,
   TRAIL_LENGTH,
+  VAPORIZE_THRESHOLD,
 } from './config.js';
 import { Vec2 } from './vector2.js';
 import { Body } from './body.js';
@@ -38,6 +39,11 @@ export class CollisionResolver {
     const totalMass = m1 + m2;
 
     if (totalMass <= 0) return [];
+
+    const ratio = m1 > m2 ? m1 / m2 : m2 / m1;
+    if (ratio > 1000) {
+      return [this._createMergedBody(b1, b2)];
+    }
 
     const v1 = b1.velocity;
     const v2 = b2.velocity;
@@ -178,7 +184,13 @@ export class CollisionResolver {
 
     big.trail = [];
 
+    mergedBody.collisionCooldown = this.getTime() + 0.5;
+
     const newBodies = [mergedBody];
+
+    if (alpha > VAPORIZE_THRESHOLD || fragmentMassTotal <= 0 || mergedRadius <= 0) {
+      return newBodies;
+    }
 
     if (fragmentMassTotal > 0 && mergedRadius > 0) {
       const fragCount = Math.min(MAX_FRAGMENTS, Math.max(4, Math.round(4 + alpha * 2)));
@@ -218,6 +230,7 @@ export class CollisionResolver {
         frag.trail = [];
         frag.isDebris = true;
         frag.shape = createDebrisShape();
+        frag.collisionCooldown = this.getTime() + 0.5;
         newBodies.push(frag);
       }
       Vec2.push(dirFrag);
@@ -248,6 +261,10 @@ export class CollisionResolver {
     const CORE_MIN_FRAC = 0.2;
     const HISTORY_TO_KEEP = 1000;
 
+    if (alpha > VAPORIZE_THRESHOLD) {
+      return newBodies;
+    }
+
     if (coreMass1 / m1 > CORE_MIN_FRAC) {
       const core1 = new Body({
         position: new Vec2(b1.position.x, b1.position.y),
@@ -264,7 +281,8 @@ export class CollisionResolver {
         core1.trail = b1.trail.slice();
       }
 
-      core1.mergeCooldown = (time || 0) + 2.0;
+      core1.collisionCooldown = (time || 0) + 0.5;
+
       b1.trail = [];
       newBodies.push(core1);
     }
@@ -285,7 +303,8 @@ export class CollisionResolver {
         core2.trail = b2.trail.slice();
       }
 
-      core2.mergeCooldown = (time || 0) + 2.0;
+      core2.collisionCooldown = (time || 0) + 0.5;
+
       b2.trail = [];
       newBodies.push(core2);
     }
@@ -353,6 +372,7 @@ export class CollisionResolver {
       frag.trail = [];
       frag.isDebris = true;
       frag.shape = createDebrisShape();
+      frag.collisionCooldown = this.getTime() + 0.5;
       newBodies.push(frag);
     }
     Vec2.push(dirFrag);

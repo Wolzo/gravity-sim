@@ -12,7 +12,7 @@ export const SOFTENING = 8;
  * Max number of trail points stored per body.
  * -1 = unlimited (useful for debugging, but can grow unbounded in memory).
  */
-export const TRAIL_LENGTH = 0;
+export const TRAIL_LENGTH = 50;
 
 /**
  * Max bodies allowed in the simulation.
@@ -28,12 +28,24 @@ export const MAX_DEPTH = 16;
 /**
  * Distance to search around a body for collisions (Broad-phase padding).
  */
-export const SEARCH_PADDING = 100;
+export const SEARCH_PADDING = 5;
 
 /**
  * Hard cap on debris fragments per collision to prevent CPU freeze.
  */
-export const MAX_FRAGMENTS = 30;
+export const MAX_FRAGMENTS = 5;
+
+/**
+ * Threshold for the vaporization of fragments
+ * If alpha (generated from the impact) exceed this value,
+ * the collision does NOT generate any fragments
+ */
+export const VAPORIZE_THRESHOLD = 8.0;
+
+/**
+ * A mass below this value does not "create" gravity
+ */
+export const MIN_GRAVITY_MASS = 50;
 
 /**
  * Multiplier for fragment ejection speed.
@@ -69,7 +81,7 @@ export const MIN_TRAIL_DISTANCE_SQ = 4 * 4;
 /**
  * Fixed physics step (120 Hz)
  */
-export const FIXED_TIME_STEP = 1 / 120;
+export const FIXED_TIME_STEP = 1 / 60;
 
 /**
  * Effective 2D "surface density" used for the mass–radius relationship.
@@ -100,3 +112,20 @@ export function radiusFromMass(mass) {
  */
 export const EARTH_RADIUS_UNITS = 30;
 export const EARTH_MASS_UNITS = DENSITY_2D * EARTH_RADIUS_UNITS * EARTH_RADIUS_UNITS;
+
+/**
+ * Creation settings
+ * Min radius set to 1 in order to avoid creation of Body with 0 mass
+ * Min velocity can be set to 0 in order to create still Bodies
+ */
+export const CREATION_STATES = {
+  IDLE: 'IDLE',
+  RADIUS: 'RADIUS',
+  VELOCITY: 'VELOCITY',
+};
+
+export const CREATION_RADIUS_MAX = 3000;
+export const CREATION_RADIUS_MIN = 1;
+
+export const CREATION_VELOCITY_MAX = 1000;
+export const CREATION_VELOCITY_MIN = 0;

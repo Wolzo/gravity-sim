@@ -6,6 +6,7 @@ import {
   SEARCH_PADDING,
   TRAIL_INTERVAL,
   MIN_TRAIL_DISTANCE_SQ,
+  MIN_GRAVITY_MASS,
 } from './config.js';
 import { CollisionResolver } from './collisionResolver.js';
 import { QuadTree } from './quadtree.js';
@@ -29,7 +30,9 @@ export class Simulation {
     this.debugCollisions = [];
     this.maxDebugCollisions = 200;
 
-    this.quadTree = new QuadTree({ x: 0, y: 0, width: 1, height: 1 });
+    this.gravityTree = new QuadTree({ x: 0, y: 0, width: 1, height: 1 });
+    this.collisionTree = new QuadTree({ x: 0, y: 0, width: 1, height: 1 });
+
     this.generatedBodiesBuffer = [];
 
     this.collisionResolver = new CollisionResolver({
@@ -126,7 +129,7 @@ export class Simulation {
     };
   }
 
-  enableCollisionDebug({ max = 200, reset = true } = {}) {
+  enableCollisionDebug({ max = 1000, reset = true } = {}) {
     this.debugEnabled = true;
     if (reset) {
       this.debugCollisions = [];
@@ -165,8 +168,8 @@ export class Simulation {
   _computeForces() {
     const bodies = this.bodies;
     const count = bodies.length;
-
     if (count === 0) return;
+
     let minX = Infinity,
       minY = Infinity,
       maxX = -Infinity,
@@ -174,30 +177,34 @@ export class Simulation {
     for (let i = 0; i < count; i++) {
       const b = bodies[i];
       b.resetAcceleration();
+
       if (b.position.x < minX) minX = b.position.x;
       if (b.position.y < minY) minY = b.position.y;
       if (b.position.x > maxX) maxX = b.position.x;
       if (b.position.y > maxY) maxY = b.position.y;
     }
 
-    const padding = 100;
-    const width = maxX - minX + padding * 2;
-    const height = maxY - minY + padding * 2;
+    const width = maxX - minX + SEARCH_PADDING * 2;
+    const height = maxY - minY + SEARCH_PADDING * 2;
     const bounds = {
-      x: minX - padding,
-      y: minY - padding,
-      width: width,
-      height: height,
+      x: minX - SEARCH_PADDING,
+      y: minY - SEARCH_PADDING,
+      width,
+      height,
     };
-    this.quadTree.reset(bounds);
+
+    this.gravityTree.reset(bounds);
+
     for (let i = 0; i < count; i++) {
-      this.quadTree.insert(bodies[i]);
+      const b = bodies[i];
+      if (!b.isDebris || b.mass > MIN_GRAVITY_MASS) {
+        this.gravityTree.insert(b);
+      }
     }
 
     for (let i = 0; i < count; i++) {
       const b = bodies[i];
-      const force = this.quadTree.calculateForce(b, this.G, this.softening);
-
+      const force = this.gravityTree.calculateForce(b, this.G, this.softening);
       b.acceleration.x += force.x;
       b.acceleration.y += force.y;
     }
@@ -268,26 +275,64 @@ export class Simulation {
     const bodies = this.bodies;
     const n = bodies.length;
 
-    if (!this.quadTree) return;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+
+    for (let i = 0; i < n; i++) {
+      const b = bodies[i];
+      if (b.position.x < minX) minX = b.position.x;
+      if (b.position.y < minY) minY = b.position.y;
+      if (b.position.x > maxX) maxX = b.position.x;
+      if (b.position.y > maxY) maxY = b.position.y;
+    }
+
+    const width = maxX - minX + SEARCH_PADDING * 2;
+    const height = maxY - minY + SEARCH_PADDING * 2;
+
+    this.collisionTree.reset({
+      x: minX - SEARCH_PADDING,
+      y: minY - SEARCH_PADDING,
+      width: width,
+      height: height,
+    });
+
+    for (let i = 0; i < n; i++) {
+      this.collisionTree.insert(bodies[i]);
+    }
 
     this.generatedBodiesBuffer.length = 0;
     const generatedBodies = this.generatedBodiesBuffer;
-
     const deadBodies = new Set();
+
     for (let i = 0; i < n; i++) {
       const bi = bodies[i];
+
       if (deadBodies.has(bi)) continue;
 
+      //if (this.time < bi.collisionCooldown) continue;
+
+      if (bi.isDebris) continue;
+
       const searchRadius = bi.radius + SEARCH_PADDING;
-      const neighbors = this.quadTree.query(bi.position.x, bi.position.y, searchRadius);
+
+      const neighbors = this.collisionTree.query(bi.position.x, bi.position.y, searchRadius);
+
       for (const bj of neighbors) {
         if (bi === bj || deadBodies.has(bj)) continue;
+        if (bi.isDebris && bj.isDebris) continue;
+
+        //if (this.time < bj.collisionCooldown) continue;
+
         const dx = bj.position.x - bi.position.x;
         const dy = bj.position.y - bi.position.y;
         const rSum = bi.radius + bj.radius;
         const d2 = dx * dx + dy * dy;
+
         if (d2 < rSum * rSum) {
           const outcome = this.collisionResolver.computeOutcome(bi, bj);
+
           if (Array.isArray(outcome)) {
             for (const nb of outcome) {
               if (nb && Number.isFinite(nb.mass) && nb.mass > 0 && nb.radius > 0.5) {
@@ -322,8 +367,8 @@ export class Simulation {
           bodies[writeIdx++] = bodies[i];
         }
       }
-
       bodies.length = writeIdx;
+
       for (const newBody of generatedBodies) {
         if (bodies.length < MAX_BODIES) {
           bodies.push(newBody);
