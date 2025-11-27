@@ -90,16 +90,44 @@ export class Simulation {
       return;
     }
 
+    const tStart = performance.now();
+
     this.stepsSinceLastTrail++;
     const tryUpdateTrail = this.stepsSinceLastTrail >= TRAIL_INTERVAL;
-    if (tryUpdateTrail) {
-      this.stepsSinceLastTrail = 0;
-    }
+    if (tryUpdateTrail) this.stepsSinceLastTrail = 0;
 
+    const t1 = performance.now();
     this._integratePosition(dt, tryUpdateTrail);
+    const dPos = performance.now() - t1;
+
+    const t2 = performance.now();
+    if (this._updateQuadTree) {
+      this._updateQuadTree();
+    }
+    const dTree = performance.now() - t2;
+
+    const t3 = performance.now();
     this._computeForces();
+    const dForce = performance.now() - t3;
+
+    const t4 = performance.now();
     this._integrateVelocity(dt);
+    const dVel = performance.now() - t4;
+
+    const t5 = performance.now();
     this._resolveCollisions();
+    const dColl = performance.now() - t5;
+
+    const total = performance.now() - tStart;
+
+    if (total > 12) {
+      console.warn(`LAG DETECTED: ${total.toFixed(2)}ms | Bodies: ${this.bodies.length}`);
+      console.log(`Breakdown:`);
+      console.log(`- Move: ${dPos.toFixed(2)}ms`);
+      console.log(`- Tree Build: ${dTree.toFixed(2)}ms`);
+      console.log(`- Gravity Calc: ${dForce.toFixed(2)}ms`);
+      console.log(`- Collisions: ${dColl.toFixed(2)}ms`);
+    }
 
     for (const body of this.bodies) {
       if (body.isDebris && body.shape) {
@@ -108,7 +136,6 @@ export class Simulation {
     }
 
     this._updateFadingTrails(dt);
-
     this.time += dt;
   }
 
@@ -197,7 +224,7 @@ export class Simulation {
 
     for (let i = 0; i < count; i++) {
       const b = bodies[i];
-      if (!b.isDebris || b.mass > MIN_GRAVITY_MASS) {
+      if (b.mass > MIN_GRAVITY_MASS) {
         this.gravityTree.insert(b);
       }
     }

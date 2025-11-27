@@ -12,7 +12,7 @@ export const SOFTENING = 8;
  * Max number of trail points stored per body.
  * -1 = unlimited (useful for debugging, but can grow unbounded in memory).
  */
-export const TRAIL_LENGTH = 50;
+export const TRAIL_LENGTH = 25;
 
 /**
  * Max bodies allowed in the simulation.
@@ -28,24 +28,24 @@ export const MAX_DEPTH = 16;
 /**
  * Distance to search around a body for collisions (Broad-phase padding).
  */
-export const SEARCH_PADDING = 5;
+export const SEARCH_PADDING = 10;
 
 /**
  * Hard cap on debris fragments per collision to prevent CPU freeze.
  */
-export const MAX_FRAGMENTS = 5;
+export const MAX_FRAGMENTS = 10;
 
 /**
  * Threshold for the vaporization of fragments
  * If alpha (generated from the impact) exceed this value,
  * the collision does NOT generate any fragments
  */
-export const VAPORIZE_THRESHOLD = 8.0;
+export const VAPORIZE_THRESHOLD = 100;
 
 /**
  * A mass below this value does not "create" gravity
  */
-export const MIN_GRAVITY_MASS = 50;
+export const MIN_GRAVITY_MASS = 5;
 
 /**
  * Multiplier for fragment ejection speed.

@@ -99,12 +99,11 @@ function loop(now) {
 
   const t5 = performance.now();
 
-  if (Math.random() < 0.01) {
-    // Logga solo l'1% dei frame per non floodare
+  /*if (Math.random() < 0.1) {
     console.log(
       `Physics: ${(t2 - t1).toFixed(2)}ms | Render: ${(t3 - t2).toFixed(2)}ms | Preview: ${(t4 - t3).toFixed(2)}ms | HUD: ${(t5 - t4).toFixed(2)}ms`
     );
-  }
+  }*/
 
   requestAnimationFrame(loop);
 }
