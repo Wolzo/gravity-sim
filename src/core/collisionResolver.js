@@ -12,7 +12,7 @@ import {
 } from './config.js';
 import { Vec2 } from './vector2.js';
 import { Body } from './body.js';
-import { createDebrisShape } from './debrisShapes.js';
+import { createDebrisShape, generateDelaunayShapes } from './debrisShapes.js';
 import { computeEscapeVelocity } from '../utils/physicsUtils.js';
 import { clamp } from '../utils/utils.js';
 
@@ -139,11 +139,9 @@ export class CollisionResolver {
     const mSmall = small.mass;
     const totalMass = mBig + mSmall;
 
-    const t = clamp((alpha - 0.6) / (2.0 - 0.6), 0, 1);
-    const fracSmallToFragments = 0.3 + 0.6 * t;
-    const fragmentMassTotal = mSmall * fracSmallToFragments;
-    const mergedMass = mBig + mSmall - fragmentMassTotal;
-
+    const destructionFactor = Math.min(1.0, 0.2 + alpha * 0.5);
+    const fragmentMassTotal = mSmall * Math.max(0.8, destructionFactor);
+    const mergedMass = mBig + (mSmall - fragmentMassTotal);
     const mergedRadius = big.radius * Math.sqrt(mergedMass / mBig);
 
     const dir = Vec2.pop();
@@ -158,7 +156,9 @@ export class CollisionResolver {
 
     const contactPointX = big.position.x + dir.x * big.radius;
     const contactPointY = big.position.y + dir.y * big.radius;
-    Vec2.push(dir);
+
+    const tanX = -dir.y;
+    const tanY = dir.x;
 
     const comX = (big.position.x * mBig + small.position.x * mSmall) / totalMass;
     const comY = (big.position.y * mBig + small.position.y * mSmall) / totalMass;
@@ -174,50 +174,59 @@ export class CollisionResolver {
 
     const sourceTrail = big.trail;
     const HISTORY_TO_KEEP = 1000;
-
     if (sourceTrail.length > HISTORY_TO_KEEP) {
-      const startIdx = sourceTrail.length - HISTORY_TO_KEEP;
-      mergedBody.trail = sourceTrail.slice(startIdx);
+      mergedBody.trail = sourceTrail.slice(sourceTrail.length - HISTORY_TO_KEEP);
     } else {
       mergedBody.trail = sourceTrail.slice();
     }
-
     big.trail = [];
-
     mergedBody.collisionCooldown = this.getTime() + 0.5;
 
     const newBodies = [mergedBody];
 
     if (alpha > VAPORIZE_THRESHOLD || fragmentMassTotal <= 0 || mergedRadius <= 0) {
+      Vec2.push(dir);
       return newBodies;
     }
 
-    if (fragmentMassTotal > 0 && mergedRadius > 0) {
-      const fragCount = Math.min(MAX_FRAGMENTS, Math.max(4, Math.round(4 + alpha * 2)));
+    if (fragmentMassTotal > 0) {
+      const baseCount = 10;
+      const density = 8;
+      const rawCount = Math.round(baseCount + alpha * density);
+      const fragCount = Math.min(MAX_FRAGMENTS, Math.max(6, rawCount));
+
       const singleFragMass = fragmentMassTotal / fragCount;
-      const baseOffset = Math.min(mergedRadius * 0.9, small.radius * 3);
+      const fragRadius = radiusFromMass(singleFragMass);
+
       const baseKick = alpha * 0.6 * DEBRIS_EXTRA_KICK;
-      const baseAngle = Math.atan2(normal.y, normal.x) + Math.PI;
+      const baseAngle = Math.atan2(dir.y, dir.x);
+
+      const debrisShapes = generateDelaunayShapes(radiusFromMass(mSmall), fragCount);
+      const impactSpreadWidth = small.radius * 2.5;
 
       const dirFrag = Vec2.pop();
+      const spreadAngle = Math.PI / 3;
+
       for (let k = 0; k < fragCount; k++) {
-        const jitterAngle = (Math.random() - 0.5) * (Math.PI / fragCount);
-        const angle = baseAngle + (2 * Math.PI * k) / fragCount + jitterAngle;
+        const angleOffset = (Math.random() - 0.5) * spreadAngle;
+        const angle = baseAngle + angleOffset;
 
         dirFrag.set(Math.cos(angle), Math.sin(angle));
 
-        const distJitter = 0.8 + 0.6 * Math.random();
-        const speedJitter = 0.8 + 0.8 * Math.random();
+        const speedJitter = 0.5 + 1.0 * Math.random();
+
+        const lateralOffset = (Math.random() - 0.5) * impactSpreadWidth;
+        const outwardOffset = fragRadius + 2.0 + Math.random() * small.radius * 0.5;
 
         const pos = new Vec2(
-          contactPointX + dirFrag.x * baseOffset * distJitter,
-          contactPointY + dirFrag.y * baseOffset * distJitter
+          contactPointX + dir.x * outwardOffset + tanX * lateralOffset,
+          contactPointY + dir.y * outwardOffset + tanY * lateralOffset
         );
+
         const vel = new Vec2(
           vcm.x + dirFrag.x * baseKick * speedJitter,
           vcm.y + dirFrag.y * baseKick * speedJitter
         );
-        const fragRadius = radiusFromMass(singleFragMass);
 
         const frag = new Body({
           position: pos,
@@ -229,13 +238,15 @@ export class CollisionResolver {
         });
         frag.trail = [];
         frag.isDebris = true;
-        frag.shape = createDebrisShape();
+        frag.shape = debrisShapes[k % debrisShapes.length];
         frag.collisionCooldown = this.getTime() + 0.5;
+
         newBodies.push(frag);
       }
       Vec2.push(dirFrag);
     }
 
+    Vec2.push(dir);
     return newBodies;
   }
 
@@ -310,6 +321,7 @@ export class CollisionResolver {
     }
 
     const fragmentMassTotal = lostMass1 + lostMass2;
+    const fragmentMassRadius = radiusFromMass(fragmentMassTotal);
     if (fragmentMassTotal <= 0) return newBodies;
 
     const MIN_FRAG_RADIUS = Math.max(1.2, 0.12 * Math.min(b1.radius, b2.radius));
@@ -338,6 +350,8 @@ export class CollisionResolver {
 
     const baseKick = Math.min(alpha * 0.7 * DEBRIS_EXTRA_KICK, vEscLocal + 0.8 * vRelN);
     const baseAngle = Math.atan2(normal.y, normal.x);
+
+    const debrisShapes = generateDelaunayShapes(fragmentMassRadius, singleFragMass);
 
     const dirFrag = Vec2.pop();
     for (let k = 0; k < fragCount; k++) {
@@ -371,7 +385,7 @@ export class CollisionResolver {
       });
       frag.trail = [];
       frag.isDebris = true;
-      frag.shape = createDebrisShape();
+      frag.shape = debrisShapes[k % debrisShapes.length];
       frag.collisionCooldown = this.getTime() + 0.5;
       newBodies.push(frag);
     }

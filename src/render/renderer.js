@@ -188,6 +188,38 @@ export class Renderer {
   }
 
   _drawDebrisShape(ctx, body, x, y, radius) {
+    // CASO A: Nuovi Triangoli (Array di coordinate)
+    if (Array.isArray(body.shape) && body.shape.length > 0) {
+      ctx.save();
+      ctx.translate(x, y);
+
+      if (body.angle) ctx.rotate(body.angle);
+
+      ctx.beginPath();
+      const v = body.shape;
+
+      ctx.moveTo(v[0][0], v[0][1]);
+      for (let i = 1; i < v.length; i++) {
+        ctx.lineTo(v[i][0], v[i][1]);
+      }
+      ctx.closePath();
+
+      // Riempimento
+      ctx.fillStyle = body.color;
+      ctx.fill();
+
+      // SMUSSATURA: Disegna un bordo "rotondo" dello stesso colore del riempimento
+      // Questo maschera gli angoli acuti del triangolo
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = radius * 0.2; // Spessore ~20% del raggio
+      ctx.strokeStyle = body.color;
+      ctx.stroke();
+
+      ctx.restore();
+      return;
+    }
+
+    // CASO B: Fallback (Codice originale per esagoni/poligoni)
     const shape = body.shape || {};
     const sides = Math.max(3, shape.sides || 6);
     const angle = shape.angle || 0;
