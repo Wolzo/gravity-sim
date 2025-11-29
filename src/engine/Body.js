@@ -1,6 +1,6 @@
-import { Vec2 } from './vector2.js';
-import { generateRandomName } from '../utils/names.js';
-import { colorForBody } from '../utils/colors.js';
+import { Vec2 } from '../shared/math/Vec2.js';
+import { generateRandomName } from '../shared/utils/Names.js';
+import { colorForBody } from '../shared/utils/Colors.js';
 
 export class Body {
   constructor({
@@ -15,23 +15,28 @@ export class Body {
     this.velocity = velocity;
     this.mass = mass;
     this.radius = radius;
+
     this.color = color == null ? colorForBody({ mass, velocity }) : color;
     this.name = name == null ? generateRandomName() : name;
+
     this.acceleration = new Vec2(0, 0);
+
     this.trail = [];
-    this.collisionCooldown = 0; //not used
+
+    this.isDebris = false;
+    this.shape = null;
+    this.collisionCooldown = 0;
   }
 
   /**
-   * Sets the accumulated acceleration to zero for the next force computation step.
-   * Must be called before computing gravitational forces.
+   * Resets the accumulated acceleration to zero for the next force computation step.
    */
   resetAcceleration() {
     this.acceleration.set(0, 0);
   }
 
   /**
-   * Kinetic energy: 1/2 m v^2.
+   * Calculates current kinetic energy (0.5 * m * v^2).
    */
   kineticEnergy() {
     const v2 = this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y;

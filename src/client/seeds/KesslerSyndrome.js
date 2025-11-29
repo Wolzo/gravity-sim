@@ -1,19 +1,17 @@
-import { Body } from '../core/body.js';
-import { Vec2 } from '../core/vector2.js';
-import { configureCameraForSeed } from '../utils/utils.js';
-import { massFromRadius, GRAVITY_CONSTANT } from '../core/config.js';
+import { Body } from '../../engine/Body.js';
+import { Vec2 } from '../../shared/math/Vec2.js';
+import { configureCameraForSeed } from '../../shared/utils/CameraUtils.js';
+import { massFromRadius, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
-export function seedKesslerSyndrome(renderer) {
-  const simulation = renderer?.simulation;
-  if (!simulation) return;
-  simulation.clear();
+export function seedKesslerSyndrome({ world, renderer }) {
+  if (!world) return;
+  world.clear();
 
-  const G = simulation.G || GRAVITY_CONSTANT;
-
+  const G = PHYSICS.GRAVITY_CONSTANT;
   const PLANET_RADIUS = 60;
   const PLANET_MASS = massFromRadius(PLANET_RADIUS) * 5;
 
-  simulation.addBody(
+  world.addBody(
     new Body({
       position: new Vec2(0, 0),
       velocity: new Vec2(0, 0),
@@ -36,12 +34,11 @@ export function seedKesslerSyndrome(renderer) {
 
     for (let i = 0; i < BODIES_PER_LAYER; i++) {
       const angle = (i / BODIES_PER_LAYER) * Math.PI * 2 + Math.random() * 0.1;
-
       const pos = new Vec2(r * Math.cos(angle), r * Math.sin(angle));
       const vMag = Math.sqrt((G * PLANET_MASS) / r);
       const vel = new Vec2(-Math.sin(angle) * vMag * dir, Math.cos(angle) * vMag * dir);
 
-      simulation.addBody(
+      world.addBody(
         new Body({
           position: pos,
           velocity: vel,

@@ -1,21 +1,20 @@
-import { Body } from '../core/body.js';
-import { Vec2 } from '../core/vector2.js';
-import { configureCameraForSeed } from '../utils/utils.js';
-import { massFromRadius, GRAVITY_CONSTANT } from '../core/config.js';
+import { Body } from '../../engine/Body.js';
+import { Vec2 } from '../../shared/math/Vec2.js';
+import { configureCameraForSeed } from '../../shared/utils/CameraUtils.js';
+import { massFromRadius, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
-export function seedGalacticCollision(renderer) {
-  const simulation = renderer?.simulation;
-  if (!simulation) return;
-  simulation.clear();
+export function seedGalacticCollision({ world, renderer }) {
+  if (!world) return;
+  world.clear();
 
-  const G = simulation.G || GRAVITY_CONSTANT;
+  const G = PHYSICS.GRAVITY_CONSTANT;
 
   function spawnCluster(centerX, centerY, velocityX, velocityY, colorTheme, rotateCW) {
     const CORE_MASS = 15000;
     const COUNT = 250;
     const RADIUS = 600;
 
-    simulation.addBody(
+    world.addBody(
       new Body({
         position: new Vec2(centerX, centerY),
         velocity: new Vec2(velocityX, velocityY),
@@ -38,7 +37,7 @@ export function seedGalacticCollision(renderer) {
         Math.cos(theta) * vOrbital * dir
       );
 
-      simulation.addBody(
+      world.addBody(
         new Body({
           position: new Vec2(centerX + localPos.x, centerY + localPos.y),
           velocity: new Vec2(velocityX + localVel.x, velocityY + localVel.y),
@@ -51,7 +50,6 @@ export function seedGalacticCollision(renderer) {
   }
 
   spawnCluster(-1000, 0, 15, 0, '#ffaa88', true);
-
   spawnCluster(1000, 200, -15, 0, '#88aaff', false);
 
   configureCameraForSeed(renderer, { center: new Vec2(0, 0), zoom: 0.25 });

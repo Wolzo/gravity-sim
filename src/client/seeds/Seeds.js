@@ -1,8 +1,8 @@
-import { seedSolarSystem } from './solarSystem.js';
-import { seedGalaxy } from './galaxy.js';
-import { seedBinaryDisk } from './binaryDisk.js';
-import { seedGalacticCollision } from './galacticCollision.js';
-import { seedKesslerSyndrome } from './kesslerSyndrome.js';
+import { seedSolarSystem } from './SolarSystem.js';
+import { seedGalaxy } from './Galaxy.js';
+import { seedBinaryDisk } from './BinaryDisk.js';
+import { seedGalacticCollision } from './GalacticCollision.js';
+import { seedKesslerSyndrome } from './KesslerSyndrome.js';
 
 export const SEEDS = {
   solar: {

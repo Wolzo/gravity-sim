@@ -3,14 +3,19 @@
  * Style: Modern Flat with "Neon/Bloom" glow.
  */
 export class Renderer {
-  constructor(canvas, simulation, camera) {
+  constructor(canvas, simulation, camera, eventBus) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
     this.simulation = simulation;
     this.camera = camera;
     this.dpr = window.devicePixelRatio || 1;
     this.selectedBody = null;
+    this.eventBus = eventBus;
     this.resize();
+
+    eventBus.on('interaction:select', (body) => {
+      this.setSelectedBody(body);
+    });
   }
 
   setSelectedBody(body) {
@@ -123,9 +128,9 @@ export class Renderer {
 
     if (isSelected) {
       ctx.save();
-      ctx.lineWidth = 1.0 / zoom;
+      ctx.lineWidth = 2.0 / zoom;
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.setLineDash([5 / zoom, 5 / zoom]);
+      ctx.setLineDash([3 / zoom, 3 / zoom]);
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.stroke();

@@ -59,12 +59,6 @@ export class Vec2 {
    */
   static pool = [];
 
-  static warmup(count) {
-    for (let i = 0; i < count; i++) {
-      this.pool.push(new Vec2());
-    }
-  }
-
   /**
    * Get a vector from the pool or create a new one.
    */

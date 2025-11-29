@@ -1,41 +1,4 @@
-/**
- * Clamps `value` to the inclusive range [min, max].
- */
-export function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-export function pseudoRandom(a, b) {
-  const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
-  return x - Math.floor(x);
-}
-
-/**
- * Formats a numeric value for HUD display:
- * - uses scientific notation for very small or very large magnitudes
- * - otherwise chooses a reasonable number of decimal places.
- */
-export function formatValue(v) {
-  if (!Number.isFinite(v)) return '—';
-
-  const abs = Math.abs(v);
-  if (abs === 0) return '0';
-
-  if (abs >= 1e4 || abs < 1e-3) {
-    return v.toExponential(2);
-  }
-
-  if (abs >= 10) {
-    return v.toFixed(1);
-  }
-
-  if (abs >= 1) {
-    return v.toFixed(2);
-  }
-
-  return v.toPrecision(3);
-}
-
+import { clamp } from '../math/MathUtils.js';
 /**
  * Positions the camera so that a given world-space point is at the center
  * of the canvas, with the desired zoom.

@@ -1,38 +1,21 @@
-import {
-  GRAVITY_CONSTANT,
-  SOFTENING,
-  MAX_FRAGMENTS,
-  radiusFromMass,
-  massFromRadius,
-  DEBRIS_EXTRA_KICK,
-  MASS_RATIO_BIG,
-  ALPHA_MERGE,
-  TRAIL_LENGTH,
-  VAPORIZE_THRESHOLD,
-} from './config.js';
-import { Vec2 } from './vector2.js';
-import { Body } from './body.js';
-import { createDebrisShape, generateDelaunayShapes } from './debrisShapes.js';
-import { computeEscapeVelocity } from '../utils/physicsUtils.js';
-import { clamp } from '../utils/utils.js';
+import { PHYSICS, radiusFromMass, massFromRadius } from '../../shared/config/PhysicsConfig.js';
+import { Vec2 } from '../../shared/math/Vec2.js';
+import { computeEscapeVelocity, clamp } from '../../shared/math/MathUtils.js';
+import { Body } from '../../engine/Body.js';
+import { generateDelaunayShapes } from '../logic/DebrisGenerator.js';
 
-/**
- * Handles classification and resolution of pair-wise collisions.
- * Uses Object Pooling (Vec2.pop/push) to minimize Garbage Collection.
- */
 export class CollisionResolver {
-  constructor({
-    G = GRAVITY_CONSTANT,
-    softening = SOFTENING,
-    getTime = () => 0,
-    recordDebug = () => {},
-  } = {}) {
+  constructor({ G, softening, getTime, events }) {
     this.G = G;
     this.softening = softening;
     this.getTime = getTime;
-    this.recordDebug = recordDebug;
+    this.events = events;
   }
 
+  /**
+   * Determines the outcome of a collision between two bodies.
+   * Returns an array of new bodies generated (if any).
+   */
   computeOutcome(b1, b2) {
     const m1 = b1.mass;
     const m2 = b2.mass;
@@ -77,24 +60,20 @@ export class CollisionResolver {
       const R_eff = Math.max(b1.radius, b2.radius);
       const vEsc = computeEscapeVelocity(this.G, totalMass, R_eff, this.softening);
       const alpha = vEsc > 1e-6 ? speedRel / vEsc : 0;
+
       const massRatio = m1 >= m2 ? m1 / m2 : m2 / m1;
       const time = this.getTime() || 0;
 
-      const baseDebug = { time, m1, m2, totalMass, speedRel, vEsc, alpha, outcome: '' };
-
-      if (alpha < ALPHA_MERGE) {
-        this.recordDebug({ ...baseDebug, outcome: 'mergeLowEnergy' });
+      if (alpha < PHYSICS.ALPHA_MERGE) {
         return [this._createMergedBody(b1, b2)];
       }
 
-      if (massRatio > MASS_RATIO_BIG) {
+      if (massRatio > PHYSICS.MASS_RATIO_BIG) {
         const big = m1 >= m2 ? b1 : b2;
         const small = big === b1 ? b2 : b1;
-        this.recordDebug({ ...baseDebug, outcome: 'bigSmallFragment' });
         return this._collisionBigSmall(big, small, alpha, normal, tangent, vcm);
       }
 
-      this.recordDebug({ ...baseDebug, outcome: 'fragmentBoth' });
       return this._fragmentBoth(b1, b2, alpha, normal, tangent, vcm, time);
     } finally {
       Vec2.push(normal);
@@ -109,10 +88,10 @@ export class CollisionResolver {
     const vy = (bi.velocity.y * bi.mass + bj.velocity.y * bj.mass) / totalMass;
     const x = (bi.position.x * bi.mass + bj.position.x * bj.mass) / totalMass;
     const y = (bi.position.y * bi.mass + bj.position.y * bj.mass) / totalMass;
-
     const newRadius = Math.sqrt(bi.radius * bi.radius + bj.radius * bj.radius);
 
     const dominant = bi.mass >= bj.mass ? bi : bj;
+
     const mergedBody = new Body({
       position: new Vec2(x, y),
       velocity: new Vec2(vx, vy),
@@ -122,15 +101,6 @@ export class CollisionResolver {
       name: dominant.name,
     });
 
-    const sourceTrail = dominant.trail;
-    if (sourceTrail.length > TRAIL_LENGTH) {
-      const startIdx = sourceTrail.length - TRAIL_LENGTH;
-      mergedBody.trail = sourceTrail.slice(startIdx);
-    } else {
-      mergedBody.trail = sourceTrail.slice();
-    }
-
-    dominant.trail = [];
     return mergedBody;
   }
 
@@ -156,7 +126,6 @@ export class CollisionResolver {
 
     const contactPointX = big.position.x + dir.x * big.radius;
     const contactPointY = big.position.y + dir.y * big.radius;
-
     const tanX = -dir.y;
     const tanY = dir.x;
 
@@ -172,19 +141,10 @@ export class CollisionResolver {
       name: big.name,
     });
 
-    const sourceTrail = big.trail;
-    const HISTORY_TO_KEEP = 1000;
-    if (sourceTrail.length > HISTORY_TO_KEEP) {
-      mergedBody.trail = sourceTrail.slice(sourceTrail.length - HISTORY_TO_KEEP);
-    } else {
-      mergedBody.trail = sourceTrail.slice();
-    }
-    big.trail = [];
     mergedBody.collisionCooldown = this.getTime() + 0.5;
-
     const newBodies = [mergedBody];
 
-    if (alpha > VAPORIZE_THRESHOLD || fragmentMassTotal <= 0 || mergedRadius <= 0) {
+    if (alpha > PHYSICS.VAPORIZE_THRESHOLD || fragmentMassTotal <= 0 || mergedRadius <= 0) {
       Vec2.push(dir);
       return newBodies;
     }
@@ -193,12 +153,10 @@ export class CollisionResolver {
       const baseCount = 10;
       const density = 8;
       const rawCount = Math.round(baseCount + alpha * density);
-      const fragCount = Math.min(MAX_FRAGMENTS, Math.max(6, rawCount));
-
+      const fragCount = Math.min(PHYSICS.MAX_FRAGMENTS, Math.max(6, rawCount));
       const singleFragMass = fragmentMassTotal / fragCount;
       const fragRadius = radiusFromMass(singleFragMass);
-
-      const baseKick = alpha * 0.6 * DEBRIS_EXTRA_KICK;
+      const baseKick = alpha * 0.6 * PHYSICS.DEBRIS_EXTRA_KICK;
       const baseAngle = Math.atan2(dir.y, dir.x);
 
       const debrisShapes = generateDelaunayShapes(radiusFromMass(mSmall), fragCount);
@@ -214,7 +172,6 @@ export class CollisionResolver {
         dirFrag.set(Math.cos(angle), Math.sin(angle));
 
         const speedJitter = 0.5 + 1.0 * Math.random();
-
         const lateralOffset = (Math.random() - 0.5) * impactSpreadWidth;
         const outwardOffset = fragRadius + 2.0 + Math.random() * small.radius * 0.5;
 
@@ -222,7 +179,6 @@ export class CollisionResolver {
           contactPointX + dir.x * outwardOffset + tanX * lateralOffset,
           contactPointY + dir.y * outwardOffset + tanY * lateralOffset
         );
-
         const vel = new Vec2(
           vcm.x + dirFrag.x * baseKick * speedJitter,
           vcm.y + dirFrag.y * baseKick * speedJitter
@@ -236,7 +192,7 @@ export class CollisionResolver {
           color: small.color,
           name: small.name,
         });
-        frag.trail = [];
+
         frag.isDebris = true;
         frag.shape = debrisShapes[k % debrisShapes.length];
         frag.collisionCooldown = this.getTime() + 0.5;
@@ -257,22 +213,19 @@ export class CollisionResolver {
     const damage1 = m2 / Math.pow(m1 || 1, 1.5);
     const damage2 = m1 / Math.pow(m2 || 1, 1.5);
     const damageSum = damage1 + damage2 || 1;
-
     const baseLoss = clamp(0.5 + 0.35 * (alpha - 2.0), 0.15, 0.9);
     const fracLoss1 = baseLoss * (damage1 / damageSum);
     const fracLoss2 = baseLoss * (damage2 / damageSum);
 
     const lostMass1 = Math.min(fracLoss1 * m1, 0.9 * m1);
     const lostMass2 = Math.min(fracLoss2 * m2, 0.9 * m2);
-
     const coreMass1 = m1 - lostMass1;
     const coreMass2 = m2 - lostMass2;
 
     const newBodies = [];
     const CORE_MIN_FRAC = 0.2;
-    const HISTORY_TO_KEEP = 1000;
 
-    if (alpha > VAPORIZE_THRESHOLD) {
+    if (alpha > PHYSICS.VAPORIZE_THRESHOLD) {
       return newBodies;
     }
 
@@ -285,16 +238,7 @@ export class CollisionResolver {
         color: b1.color,
         name: b1.name,
       });
-
-      if (b1.trail.length > HISTORY_TO_KEEP) {
-        core1.trail = b1.trail.slice(b1.trail.length - HISTORY_TO_KEEP);
-      } else {
-        core1.trail = b1.trail.slice();
-      }
-
       core1.collisionCooldown = (time || 0) + 0.5;
-
-      b1.trail = [];
       newBodies.push(core1);
     }
 
@@ -307,21 +251,13 @@ export class CollisionResolver {
         color: b2.color,
         name: b2.name,
       });
-
-      if (b2.trail.length > HISTORY_TO_KEEP) {
-        core2.trail = b2.trail.slice(b2.trail.length - HISTORY_TO_KEEP);
-      } else {
-        core2.trail = b2.trail.slice();
-      }
-
       core2.collisionCooldown = (time || 0) + 0.5;
-
-      b2.trail = [];
       newBodies.push(core2);
     }
 
     const fragmentMassTotal = lostMass1 + lostMass2;
     const fragmentMassRadius = radiusFromMass(fragmentMassTotal);
+
     if (fragmentMassTotal <= 0) return newBodies;
 
     const MIN_FRAG_RADIUS = Math.max(1.2, 0.12 * Math.min(b1.radius, b2.radius));
@@ -329,7 +265,7 @@ export class CollisionResolver {
     const maxByMass = Math.max(3, Math.floor(fragmentMassTotal / minFragMass));
 
     const fragCount = Math.min(
-      MAX_FRAGMENTS,
+      PHYSICS.MAX_FRAGMENTS,
       Math.max(6, Math.min(maxByMass, Math.round(6 + alpha * 2)))
     );
     const singleFragMass = fragmentMassTotal / fragCount;
@@ -347,11 +283,10 @@ export class CollisionResolver {
     const vRelN = Math.abs(dvx * normal.x + dvy * normal.y);
     const rLocal = Math.max(b1.radius + b2.radius, 1.0);
     const vEscLocal = Math.sqrt((2 * this.G * (m1 + m2)) / rLocal);
-
-    const baseKick = Math.min(alpha * 0.7 * DEBRIS_EXTRA_KICK, vEscLocal + 0.8 * vRelN);
+    const baseKick = Math.min(alpha * 0.7 * PHYSICS.DEBRIS_EXTRA_KICK, vEscLocal + 0.8 * vRelN);
     const baseAngle = Math.atan2(normal.y, normal.x);
 
-    const debrisShapes = generateDelaunayShapes(fragmentMassRadius, singleFragMass);
+    const debrisShapes = generateDelaunayShapes(fragmentMassRadius, fragCount);
 
     const dirFrag = Vec2.pop();
     for (let k = 0; k < fragCount; k++) {
@@ -359,7 +294,6 @@ export class CollisionResolver {
       const angle = baseAngle + (2 * Math.PI * k) / fragCount + jitterAngle;
 
       dirFrag.set(Math.cos(angle), Math.sin(angle));
-
       const distJitter = 0.8 + 0.6 * Math.random();
       const speedJitter = 0.8 + 0.8 * Math.random();
 
@@ -383,10 +317,11 @@ export class CollisionResolver {
         color,
         name: null,
       });
-      frag.trail = [];
+
       frag.isDebris = true;
       frag.shape = debrisShapes[k % debrisShapes.length];
       frag.collisionCooldown = this.getTime() + 0.5;
+
       newBodies.push(frag);
     }
     Vec2.push(dirFrag);

@@ -1,15 +1,13 @@
-import { Body } from '../core/body.js';
-import { Vec2 } from '../core/vector2.js';
-import { configureCameraForSeed } from '../utils/utils.js';
-import { massFromRadius, GRAVITY_CONSTANT } from '../core/config.js';
+import { Body } from '../../engine/Body.js';
+import { Vec2 } from '../../shared/math/Vec2.js';
+import { configureCameraForSeed } from '../../shared/utils/CameraUtils.js';
+import { massFromRadius, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
-export function seedBinaryDisk(renderer) {
-  const simulation = renderer?.simulation;
-  if (!simulation) return;
-  simulation.clear();
+export function seedBinaryDisk({ world, renderer }) {
+  if (!world) return;
+  world.clear();
 
-  const G = simulation.G || GRAVITY_CONSTANT;
-
+  const G = PHYSICS.GRAVITY_CONSTANT;
   const STAR_RADIUS = 40;
   const STAR_MASS = massFromRadius(STAR_RADIUS);
   const SEPARATION = 300;
@@ -33,8 +31,8 @@ export function seedBinaryDisk(renderer) {
     name: 'Beta',
   });
 
-  simulation.addBody(star1);
-  simulation.addBody(star2);
+  world.addBody(star1);
+  world.addBody(star2);
 
   const DISK_COUNT = 400;
   const MIN_R = SEPARATION * 2.5;
@@ -48,9 +46,9 @@ export function seedBinaryDisk(renderer) {
     const pos = new Vec2(dist * Math.cos(angle), dist * Math.sin(angle));
     const vMag = Math.sqrt((G * CENTER_MASS) / dist);
     const vel = new Vec2(-Math.sin(angle) * vMag, Math.cos(angle) * vMag);
-
     const r = 1.5 + Math.random() * 2.5;
-    simulation.addBody(
+
+    world.addBody(
       new Body({
         position: pos,
         velocity: vel,

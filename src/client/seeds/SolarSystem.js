@@ -1,25 +1,18 @@
-import { Body } from '../core/body.js';
-import { Vec2 } from '../core/vector2.js';
-import { configureCameraForSeed } from '../utils/utils.js';
-import {
-  radiusFromMass,
-  massFromRadius,
-  GRAVITY_CONSTANT,
-  EARTH_MASS_UNITS,
-} from '../core/config.js';
+import { Body } from '../../engine/Body.js';
+import { Vec2 } from '../../shared/math/Vec2.js';
+import { configureCameraForSeed } from '../../shared/utils/CameraUtils.js';
+import { massFromRadius, radiusFromMass, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
-export function seedSolarSystem(renderer) {
-  const simulation = renderer?.simulation;
-  if (!simulation) return;
+export function seedSolarSystem({ world, renderer }) {
+  if (!world) return;
+  world.clear();
 
-  simulation.clear();
-
-  const G = simulation.G || GRAVITY_CONSTANT;
-  const SUN_MASS = EARTH_MASS_UNITS * 3000;
+  const G = PHYSICS.GRAVITY_CONSTANT;
+  const EARTH_MASS = 30 * 30 * PHYSICS.DENSITY_2D;
+  const SUN_MASS = EARTH_MASS * 3000;
   const ORBIT_SCALE = 3500;
 
-  // 1. The Sun
-  simulation.addBody(
+  world.addBody(
     new Body({
       position: new Vec2(0, 0),
       velocity: new Vec2(0, 0),
@@ -30,7 +23,6 @@ export function seedSolarSystem(renderer) {
     })
   );
 
-  // 2. Planets
   const planets = [
     { name: 'Mercury', a: 0.39, m: 0.055, c: '#a67d5d' },
     { name: 'Venus', a: 0.72, m: 0.815, c: '#e3bb76' },
@@ -47,12 +39,11 @@ export function seedSolarSystem(renderer) {
     const angle = Math.random() * Math.PI * 2;
     const pos = new Vec2(r * Math.cos(angle), r * Math.sin(angle));
 
-    // Circular orbit velocity: v = sqrt(GM/r)
     const vMag = Math.sqrt((G * SUN_MASS) / r);
     const vel = new Vec2(-Math.sin(angle) * vMag, Math.cos(angle) * vMag);
+    const mass = EARTH_MASS * p.m;
 
-    const mass = EARTH_MASS_UNITS * p.m;
-    simulation.addBody(
+    world.addBody(
       new Body({
         position: pos,
         velocity: vel,
@@ -64,17 +55,17 @@ export function seedSolarSystem(renderer) {
     );
   });
 
-  // 3. Asteroid Belt (Between Mars and Jupiter)
   const BELT_COUNT = 150;
   for (let i = 0; i < BELT_COUNT; i++) {
     const dist = (2.2 + Math.random() * 1.0) * ORBIT_SCALE;
     const angle = Math.random() * Math.PI * 2;
     const pos = new Vec2(dist * Math.cos(angle), dist * Math.sin(angle));
+
     const vMag = Math.sqrt((G * SUN_MASS) / dist);
     const vel = new Vec2(-Math.sin(angle) * vMag, Math.cos(angle) * vMag);
 
     const r = 1.5 + Math.random() * 2;
-    simulation.addBody(
+    world.addBody(
       new Body({
         position: pos,
         velocity: vel,

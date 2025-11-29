@@ -1,5 +1,5 @@
-import { Vec2 } from './vector2.js';
-import { MAX_DEPTH } from './config.js';
+import { Vec2 } from '../../shared/math/Vec2.js';
+import { PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
 class Node {
   constructor(x, y, size, depth) {
@@ -36,16 +36,13 @@ class Node {
     node.reclaim();
   }
 
-  /**
-   * Resets the node state for reuse.
-   */
   reset(x, y, size, depth) {
     this.x = x;
     this.y = y;
     this.size = size;
     this.depth = depth;
     this.mass = 0;
-    this.centerOfMass = new Vec2(0, 0);
+    this.centerOfMass.set(0, 0);
     this.body = null;
     this.children = null;
   }
@@ -82,7 +79,7 @@ class Node {
       return;
     }
 
-    if (this.depth < MAX_DEPTH) {
+    if (this.depth < PHYSICS.MAX_DEPTH) {
       this._subdivide();
 
       const oldBodyQuad = this._getQuadrant(this.body);
@@ -154,19 +151,12 @@ class Node {
 }
 
 export class QuadTree {
-  cconstructor(bounds, theta = 0.5) {
+  constructor(bounds, theta = 0.5) {
     this.theta = theta;
     this.root = null;
     this.reset(bounds);
   }
 
-  static warmup(count) {
-    Node.warmup(count);
-  }
-
-  /**
-   * Clears the tree and resets bounds without allocating new memory.
-   */
   reset(bounds) {
     if (this.root) {
       Node.push(this.root);
@@ -202,8 +192,8 @@ export class QuadTree {
     const dx = node.centerOfMass.x - body.position.x;
     const dy = node.centerOfMass.y - body.position.y;
     const distSq = dx * dx + dy * dy;
-    const dist = Math.sqrt(distSq);
 
+    const dist = Math.sqrt(distSq);
     const size = node.size;
 
     if (node.children && size / dist < this.theta) {
