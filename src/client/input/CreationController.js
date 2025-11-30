@@ -20,8 +20,6 @@ export class CreationController {
     this.lastPan = null;
     this.selectedBody = null;
 
-    this.wasRunningBeforeCreation = null;
-
     this._bindEvents();
   }
 
@@ -141,9 +139,8 @@ export class CreationController {
           this.mode = CREATION_STATES.RADIUS;
           this.center = pos;
           this.radius = 0;
-          //TODO
-          //this.wasRunningBeforeCreation = this.isRunning;
-          //if (this.wasRunningBeforeCreation) this.eventBus.emit('sim:pause');
+
+          this.eventBus.emit('sim:pause');
           this.eventBus.emit('ui:lock', true);
           this._emitPreview();
         });
@@ -253,7 +250,6 @@ export class CreationController {
     this.eventBus.emit('ui:lock', false);
     this._clearPreview();
 
-    if (this.wasRunningBeforeCreation) this.eventBus.emit('sim:resume');
-    this.wasRunningBeforeCreation = null;
+    this.eventBus.emit('sim:resume', true);
   }
 }

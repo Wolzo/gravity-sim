@@ -115,8 +115,8 @@ export class HUD {
       this.updateTooltipFrame(frameObj);
     });
 
-    this.eventBus.on('sim:pause', () => this.updatePlayPauseIcon(false));
-    this.eventBus.on('sim:resume', () => this.updatePlayPauseIcon(true));
+    this.eventBus.on('ui:pause', () => this.updatePlayPauseIcon(false));
+    this.eventBus.on('ui:resume', () => this.updatePlayPauseIcon(true));
 
     this.eventBus.on('camera:moved', (data) => {
       this.updateCameraString(data.toString);

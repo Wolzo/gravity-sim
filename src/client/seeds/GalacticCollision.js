@@ -1,6 +1,5 @@
 import { Body } from '../../engine/Body.js';
 import { Vec2 } from '../../shared/math/Vec2.js';
-import { configureCameraForSeed } from '../../shared/utils/CameraUtils.js';
 import { massFromRadius, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
 export function seedGalacticCollision({ world, eventBus }) {

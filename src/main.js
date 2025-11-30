@@ -8,12 +8,13 @@ import { PHYSICS } from './shared/config/PhysicsConfig.js';
 import { SEEDS, DEFAULT_SEED_KEY } from './client/seeds/Seeds.js';
 
 const canvas = document.getElementById('simCanvas');
+const hudElement = document.getElementById('hud');
 
 const eventBus = new EventBus();
 const world = new World(eventBus);
 const camera = new Camera(eventBus);
 const renderer = new Renderer(canvas, eventBus);
-const creationController = new CreationController(canvas, eventBus);
+const creationController = new CreationController(canvas, eventBus, hudElement);
 const hud = new HUD(eventBus, SEEDS, DEFAULT_SEED_KEY);
 
 if (typeof window !== 'undefined') {
@@ -41,11 +42,25 @@ let accumulator = 0;
 const FIXED_STEP = PHYSICS.FIXED_TIME_STEP;
 
 let isRunning = true;
+let wasRunningBeforePause = false;
 let timeScale = 1;
 
 eventBus.on('sim:toggle', () => {
   isRunning = !isRunning;
-  eventBus.emit(isRunning ? 'sim:resume' : 'sim:pause');
+  eventBus.emit(isRunning ? 'ui:resume' : 'ui:pause');
+});
+
+eventBus.on('sim:pause', () => {
+  wasRunningBeforePause = isRunning;
+  isRunning = false;
+  eventBus.emit('ui:pause');
+});
+
+eventBus.on('sim:resume', (resumeOldState) => {
+  if (resumeOldState && !wasRunningBeforePause) return;
+
+  isRunning = true;
+  eventBus.emit('ui:resume');
 });
 
 eventBus.on('ui:timeScale', (scale) => {
