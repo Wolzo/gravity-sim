@@ -1,84 +1,106 @@
 import { clamp } from '../../shared/math/MathUtils.js';
 
 export class Camera {
-  /**
-   * Manages the viewport, zoom level, and coordinate conversion (World <-> Screen).
-   * Uses "Center Origin" logic: camera.position corresponds to the center of the viewport.
-   */
   constructor(eventBus, { x = 0, y = 0, zoom = 1, minZoom = 0.02, maxZoom = 5 } = {}) {
     this.eventBus = eventBus;
     this.position = { x, y };
     this.zoom = zoom;
     this.minZoom = minZoom;
     this.maxZoom = maxZoom;
-    this.followTarget = null;
     this.viewport = { width: 0, height: 0 };
+    this.followTarget = null;
+    this._initEvents();
   }
 
-  setViewport(width, height) {
+  _initEvents() {
+    this.eventBus.on('camera:set-position', ({ dx, dy, zoom }) => {
+      if (zoom) this.zoom = zoom;
+      this._move(dx, dy);
+    });
+
+    this.eventBus.on('camera:set-zoom', ({ sx, sy, zoomFactor }) =>
+      this._zoomAt(sx, sy, zoomFactor)
+    );
+
+    this.eventBus.on('window:resize', ({ width, height }) => this._setViewport(width, height));
+
+    this.eventBus.on('camera:request-world', ({ sx, sy, callback }) =>
+      callback(this._toWorld(sx, sy))
+    );
+    this.eventBus.on('camera:request-screen', ({ x, y, callback }) =>
+      callback(this._toScreen(x, y))
+    );
+
+    this.eventBus.on('interaction:select', (body) => (this.followTarget = body || null));
+    this.eventBus.on('frame:render', () => {
+      if (this.followTarget) this._followTarget();
+    });
+  }
+
+  _setViewport(width, height) {
     this.viewport.width = width;
     this.viewport.height = height;
   }
 
-  worldToScreen(x, y, target = { x: 0, y: 0 }) {
-    const centerX = this.viewport.width / 2;
-    const centerY = this.viewport.height / 2;
-
-    target.x = (x - this.position.x) * this.zoom + centerX;
-    target.y = (y - this.position.y) * this.zoom + centerY;
-    return target;
+  _toScreen(x, y) {
+    const cx = this.viewport.width / 2;
+    const cy = this.viewport.height / 2;
+    return { x: (x - this.position.x) * this.zoom + cx, y: (y - this.position.y) * this.zoom + cy };
   }
 
-  screenToWorld(sx, sy, target = { x: 0, y: 0 }) {
-    const centerX = this.viewport.width / 2;
-    const centerY = this.viewport.height / 2;
-
-    target.x = (sx - centerX) / this.zoom + this.position.x;
-    target.y = (sy - centerY) / this.zoom + this.position.y;
-    return target;
+  _toWorld(sx, sy) {
+    const cx = this.viewport.width / 2;
+    const cy = this.viewport.height / 2;
+    return {
+      x: (sx - cx) / this.zoom + this.position.x,
+      y: (sy - cy) / this.zoom + this.position.y,
+    };
   }
 
-  move(dx, dy) {
-    this.position.x += dx;
-    this.position.y += dy;
-
-    this.eventBus.emit('camera:move', {
+  _move(dx, dy) {
+    this.position.x += dx / this.zoom;
+    this.position.y += dy / this.zoom;
+    this.eventBus.emit('camera:moved', {
       position: this.position,
       zoom: this.zoom,
-      followTarget: this.followTarget,
-      positionString: this.getCameraPositionString(),
+      toString: this._getCameraPositionString(),
     });
   }
 
-  zoomAt(sx, sy, factor) {
+  _zoomAt(sx, sy, factor) {
     const oldZoom = this.zoom;
-    let newZoom = oldZoom * factor;
-    newZoom = clamp(newZoom, this.minZoom, this.maxZoom);
-
+    const newZoom = clamp(oldZoom * factor, this.minZoom, this.maxZoom);
     if (newZoom === oldZoom) return;
 
-    const mouseWorldBefore = this.screenToWorld(sx, sy);
-
+    const before = this._toWorld(sx, sy);
     this.zoom = newZoom;
+    const after = this._toWorld(sx, sy);
 
-    const mouseWorldAfter = this.screenToWorld(sx, sy);
+    this.position.x += before.x - after.x;
+    this.position.y += before.y - after.y;
 
-    this.position.x += mouseWorldBefore.x - mouseWorldAfter.x;
-    this.position.y += mouseWorldBefore.y - mouseWorldAfter.y;
-
-    this.eventBus.emit('camera:zoom', {
+    this.eventBus.emit('camera:zoomed', {
       position: this.position,
       zoom: this.zoom,
-      followTarget: this.followTarget,
-      positionString: this.getCameraPositionString(),
+      toString: this._getCameraPositionString(),
     });
   }
 
-  setFollowTarget(body) {
-    this.followTarget = body || null;
+  _followTarget() {
+    const t = this.followTarget;
+    if (!t || !t.position) return;
+
+    this.position.x = t.position.x;
+    this.position.y = t.position.y;
+
+    this.eventBus.emit('camera:moved', {
+      position: this.position,
+      zoom: this.zoom,
+      toString: this._getCameraPositionString(),
+    });
   }
 
-  getCameraPositionString() {
+  _getCameraPositionString() {
     return `x: ${this.position.x.toFixed(2)} y: ${this.position.y.toFixed(2)} zoom: ${this.zoom.toFixed(2)}`;
   }
 }

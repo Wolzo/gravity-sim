@@ -3,17 +3,17 @@ import { formatValue } from '../../shared/math/MathUtils.js';
 const SPEED_VALUES = [0.5, 1, 2, 5];
 
 export class HUD {
-  constructor(renderer, eventBus, seeds, defaultSeedKey) {
-    this.renderer = renderer;
+  constructor(eventBus, seeds, defaultSeedKey) {
     this.eventBus = eventBus;
     this.seeds = seeds;
     this.currentSeedKey = defaultSeedKey;
+
+    this.selectedBody = null;
 
     this.timeScale = 1;
     this.fps = 0;
     this.frameCount = 0;
     this.fpsTimer = 0;
-    this.selectedBody = null;
 
     this.btnToggle = document.getElementById('btn-toggle');
     this.iconToggle = document.getElementById('icon-toggle');
@@ -102,18 +102,28 @@ export class HUD {
     this.eventBus.on('world:collision', (data) => this.updateCollisionCounter(data));
     this.eventBus.on('world:step', (data) => this.updateBodiesCounter(data));
     this.eventBus.on('world:cleared', (data) => this.updateCollisionCounter(data));
+
     this.eventBus.on('ui:lock', (disabled) => this.setControlsDisabled(disabled));
-    this.eventBus.on('interaction:select', (body) => this.selectBody(body));
-    this.eventBus.on('frame:render', (dt) => this._updateFPS(dt));
-    this.eventBus.on('ui:pause', () => this.updatePlayPauseIcon(false));
-    this.eventBus.on('ui:resume', () => this.updatePlayPauseIcon(true));
-    this.eventBus.on('camera:move', (data) => {
-      this._updateCameraString(data);
+
+    this.eventBus.on('interaction:select', (body) => {
+      this.selectedBody = body;
+      if (!body) this.hideTooltip();
     });
-    this.eventBus.on('camera:zoom', (data) => {
-      this._updateCameraString(data);
+
+    this.eventBus.on('frame:render', (frameObj) => {
+      this.updateFPS(frameObj.dt);
+      this.updateTooltipFrame(frameObj);
     });
-    this.eventBus.on('tooltip:update-tooltip', (bodyInfo) => this.updateTooltip(bodyInfo));
+
+    this.eventBus.on('sim:pause', () => this.updatePlayPauseIcon(false));
+    this.eventBus.on('sim:resume', () => this.updatePlayPauseIcon(true));
+
+    this.eventBus.on('camera:moved', (data) => {
+      this.updateCameraString(data.toString);
+    });
+    this.eventBus.on('camera:zoomed', (data) => {
+      this.updateCameraString(data.toString);
+    });
   }
 
   updateCollisionCounter(collisionSummary) {
@@ -131,12 +141,7 @@ export class HUD {
     if (this.btnReset) this.btnReset.disabled = disabled;
   }
 
-  selectBody(body) {
-    this.selectedBody = body || null;
-    this.renderer.setSelectedBody(body);
-  }
-
-  _updateFPS(dt) {
+  updateFPS(dt) {
     this.frameCount++;
     this.fpsTimer += dt;
 
@@ -149,44 +154,47 @@ export class HUD {
     }
   }
 
-  _updateCameraString(camera) {
+  updateCameraString(cameraString) {
     if (!this.cameraPosition) return;
-    this.cameraPosition.textContent = camera.positionString;
+    this.cameraPosition.textContent = cameraString;
   }
 
-  updateTooltip(bodyInfo) {
-    if (!this.tooltipEl) return;
+  updateTooltipFrame({ camPos, camZoom, viewport }) {
+    if (!this.tooltipEl || !this.selectedBody) return;
 
-    if (!bodyInfo) {
+    const b = this.selectedBody;
+    const cx = viewport.width / 2;
+    const cy = viewport.height / 2;
+
+    const screenX = (b.position.x - camPos.x) * camZoom + cx;
+    const screenY = (b.position.y - camPos.y) * camZoom + cy;
+
+    if (screenX < 0 || screenX > viewport.width || screenY < 0 || screenY > viewport.height) {
       this.tooltipEl.style.display = 'none';
       return;
     }
 
-    const { screenX, screenY, name, mass, velocity } = bodyInfo;
-    const canvas = this.renderer.canvas;
-    const rect = canvas.getBoundingClientRect();
-
-    if (screenX < 0 || screenY < 0 || screenX > rect.width || screenY > rect.height) {
-      this.tooltipEl.style.display = 'none';
-      return;
-    }
+    const speed = Math.hypot(b.velocity.x, b.velocity.y);
+    const kinetic = 0.5 * b.mass * speed ** 2;
+    const name = b.name || `Body ${b.id || ''}`;
 
     this.tooltipEl.style.display = 'block';
-    this.tooltipEl.style.left = `${rect.left + screenX}px`;
-    this.tooltipEl.style.top = `${rect.top + screenY}px`;
-
-    const speed = velocity.length();
-    const kinetic = 0.5 * mass * speed * speed;
+    this.tooltipEl.style.left = `${screenX + 15}px`;
+    this.tooltipEl.style.top = `${screenY - 15}px`;
 
     this.tooltipEl.innerHTML =
       `<strong>${name}</strong><br>` +
-      `m = ${formatValue(mass)}<br>` +
+      `m = ${formatValue(b.mass)}<br>` +
       `|v| = ${formatValue(speed)}<br>` +
       `K = ${formatValue(kinetic)}`;
   }
 
+  hideTooltip() {
+    if (this.tooltipEl) this.tooltipEl.style.display = 'none';
+  }
+
   toggleRunning() {
-    this.eventBus.emit('ui:toggle');
+    this.eventBus.emit('sim:toggle');
   }
 
   updatePlayPauseIcon(running) {

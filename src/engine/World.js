@@ -5,11 +5,10 @@ import { Dynamics } from './systems/Dynamics.js';
 
 export class World {
   /**
-   * Initializes the physics world, spatial structures, and event listeners.
-   * @param {EventBus} eventBus - The shared event bus for decoupling communication.
+   * Initializes the physics world, spatial structures, and event listeners
    */
   constructor(eventBus) {
-    this.events = eventBus;
+    this.eventBus = eventBus;
     this.bodies = [];
     this.time = 0;
     this.collisionCount = 0;
@@ -25,32 +24,38 @@ export class World {
       G: PHYSICS.GRAVITY_CONSTANT,
       softening: PHYSICS.SOFTENING,
       getTime: () => this.time,
-      events: this.events,
+      eventBus: this.eventBus,
     });
+
+    this._initEvents();
+  }
+
+  _initEvents() {
+    this.eventBus.on('world:add-body', (body) => this.addBody(body));
+    this.eventBus.on('world:remove-body', (body) => this.removeBody(body));
+    this.eventBus.on('world:request-info', ({ callback }) => callback({ bodies: this.bodies }));
   }
 
   /**
    * Adds a body to the simulation if the limit has not been reached.
-   * Emits 'world:body-added'.
    */
   addBody(body) {
     if (this.bodies.length >= PHYSICS.MAX_BODIES) {
       return false;
     }
     this.bodies.push(body);
-    this.events.emit('world:body-added', body);
+    this.eventBus.emit('world:body-added', body);
     return true;
   }
 
   /**
    * Removes a body from the simulation.
-   * Emits 'world:body-removed' (used by renderer for visual cleanup/effects).
    */
   removeBody(body) {
     const index = this.bodies.indexOf(body);
     if (index === -1) return false;
 
-    this.events.emit('world:body-removed', body);
+    this.eventBus.emit('world:body-removed', body);
     this.bodies.splice(index, 1);
     return true;
   }
@@ -62,7 +67,7 @@ export class World {
     this.bodies.length = 0;
     this.time = 0;
     this.collisionCount = 0;
-    this.events.emit('world:cleared', { collisionCount: this.collisionCount });
+    this.eventBus.emit('world:cleared', { collisionCount: this.collisionCount });
   }
 
   /**
@@ -90,7 +95,7 @@ export class World {
 
     this.time += dt;
 
-    this.events.emit('world:step', {
+    this.eventBus.emit('world:step', {
       time: this.time,
       bodyCount: this.bodies.length,
       collisionCount: this.collisionCount,
@@ -179,7 +184,7 @@ export class World {
           deadBodies.add(bj);
           this.collisionCount++;
 
-          this.events.emit('world:collision', {
+          this.eventBus.emit('world:collision', {
             collisionCount: this.collisionCount,
             bodyA: bi,
             bodyB: bj,
@@ -192,7 +197,7 @@ export class World {
 
     if (deadBodies.size > 0 || generatedBodies.length > 0) {
       for (const body of deadBodies) {
-        this.events.emit('world:body-removed', body);
+        this.eventBus.emit('world:body-removed', body);
       }
 
       let writeIdx = 0;

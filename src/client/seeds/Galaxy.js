@@ -3,7 +3,7 @@ import { Vec2 } from '../../shared/math/Vec2.js';
 import { configureCameraForSeed } from '../../shared/utils/CameraUtils.js';
 import { massFromRadius, radiusFromMass, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
-export function seedGalaxy({ world, renderer }) {
+export function seedGalaxy({ world, eventBus }) {
   if (!world) return;
   world.clear();
 
@@ -51,5 +51,5 @@ export function seedGalaxy({ world, renderer }) {
     );
   }
 
-  configureCameraForSeed(renderer, { center: new Vec2(0, 0), zoom: 0.15 });
+  eventBus.emit('camera:set-position', { dx: 0, dy: 0, zoom: 0.15 });
 }

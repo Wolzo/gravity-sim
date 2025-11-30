@@ -3,7 +3,7 @@ import { Vec2 } from '../../shared/math/Vec2.js';
 import { configureCameraForSeed } from '../../shared/utils/CameraUtils.js';
 import { massFromRadius, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
-export function seedBinaryDisk({ world, renderer }) {
+export function seedBinaryDisk({ world, eventBus }) {
   if (!world) return;
   world.clear();
 
@@ -59,5 +59,5 @@ export function seedBinaryDisk({ world, renderer }) {
     );
   }
 
-  configureCameraForSeed(renderer, { center: new Vec2(0, 0), zoom: 0.3 });
+  eventBus.emit('camera:set-position', { dx: 0, dy: 0, zoom: 0.3 });
 }

@@ -3,7 +3,7 @@ import { Vec2 } from '../../shared/math/Vec2.js';
 import { configureCameraForSeed } from '../../shared/utils/CameraUtils.js';
 import { massFromRadius, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
-export function seedGalacticCollision({ world, renderer }) {
+export function seedGalacticCollision({ world, eventBus }) {
   if (!world) return;
   world.clear();
 
@@ -52,5 +52,5 @@ export function seedGalacticCollision({ world, renderer }) {
   spawnCluster(-1000, 0, 15, 0, '#ffaa88', true);
   spawnCluster(1000, 200, -15, 0, '#88aaff', false);
 
-  configureCameraForSeed(renderer, { center: new Vec2(0, 0), zoom: 0.25 });
+  eventBus.emit('camera:set-position', { dx: 0, dy: 0, zoom: 0.25 });
 }

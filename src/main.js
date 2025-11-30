@@ -12,9 +12,9 @@ const canvas = document.getElementById('simCanvas');
 const eventBus = new EventBus();
 const world = new World(eventBus);
 const camera = new Camera(eventBus);
-const renderer = new Renderer(canvas, world, camera, eventBus);
-const creationController = new CreationController(canvas, world, camera, eventBus);
-const hud = new HUD(renderer, eventBus, SEEDS, DEFAULT_SEED_KEY);
+const renderer = new Renderer(canvas, eventBus);
+const creationController = new CreationController(canvas, eventBus);
+const hud = new HUD(eventBus, SEEDS, DEFAULT_SEED_KEY);
 
 if (typeof window !== 'undefined') {
   window.world = world;
@@ -22,7 +22,8 @@ if (typeof window !== 'undefined') {
   window.camera = camera;
 }
 
-window.addEventListener('resize', () => renderer.resize());
+window.addEventListener('load', () => eventBus.emit('window:resize', window.visualViewport));
+window.addEventListener('resize', () => eventBus.emit('window:resize', window.visualViewport));
 
 if (SEEDS[DEFAULT_SEED_KEY]) {
   SEEDS[DEFAULT_SEED_KEY].apply({ world, renderer, eventBus });
@@ -33,8 +34,6 @@ eventBus.on('ui:reset', (seedKey) => {
   if (seed && typeof seed.apply === 'function') {
     seed.apply({ world, renderer, eventBus });
   }
-
-  camera.setFollowTarget(null);
 });
 
 let lastTime = performance.now();
@@ -44,9 +43,9 @@ const FIXED_STEP = PHYSICS.FIXED_TIME_STEP;
 let isRunning = true;
 let timeScale = 1;
 
-eventBus.on('ui:toggle', () => {
+eventBus.on('sim:toggle', () => {
   isRunning = !isRunning;
-  eventBus.emit(isRunning ? 'ui:resume' : 'ui:pause');
+  eventBus.emit(isRunning ? 'sim:resume' : 'sim:pause');
 });
 
 eventBus.on('ui:timeScale', (scale) => {
@@ -72,17 +71,14 @@ function loop(now) {
     steps++;
   }
 
-  if (camera.followTarget) {
-    const rect = canvas.getBoundingClientRect();
-    const zoom = camera.zoom || 1;
-    camera.position.x = camera.followTarget.position.x - rect.width / (2 * zoom);
-    camera.position.y = camera.followTarget.position.y - rect.height / (2 * zoom);
-  }
-
-  eventBus.emit('frame:render', dt);
-
-  renderer.draw(dt);
-  creationController.drawPreview();
+  eventBus.emit('frame:render', {
+    dt: dt,
+    camPos: camera.position,
+    camZoom: camera.zoom,
+    viewport: camera.viewport,
+    bodies: world.bodies,
+    fadingTrails: world.fadingTrails,
+  });
 
   requestAnimationFrame(loop);
 }
