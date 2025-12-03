@@ -1,4 +1,5 @@
 import { RENDER, CREATION_STATES } from '../../shared/config/RenderConfig.js';
+import { StarBackground } from './StarBackground.js';
 
 /**
  * Minimal 2D renderer for the gravity simulation.
@@ -15,6 +16,8 @@ export class Renderer {
 
     this._resize();
     this._initEvents();
+
+    this.starBackground = new StarBackground(canvas);
   }
 
   _initEvents() {
@@ -55,8 +58,13 @@ export class Renderer {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#08090c';
     ctx.fillRect(0, 0, width, height);
-    ctx.restore();
 
+    ctx.restore();
+    ctx.save();
+
+    this.starBackground.draw(ctx, camX, camY, dpr, width, height);
+
+    ctx.restore();
     ctx.save();
 
     const cx = width / 2;
@@ -170,7 +178,7 @@ export class Renderer {
     }
   }
 
-  _drawBody(body, zoom, isSelected = false) {
+  _drawBody(body, zoom, isSelected) {
     const { ctx } = this;
     const x = body.position.x;
     const y = body.position.y;
@@ -187,41 +195,27 @@ export class Renderer {
     }
 
     if (screenRadius > 2) {
-      ctx.beginPath();
-      const atmoRadius = radius * 1.3;
-      ctx.arc(x, y, atmoRadius, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.2;
-      ctx.fill();
-      ctx.globalAlpha = 1.0;
+      this._drawGlow(body, screenRadius);
     }
+    ctx.save();
 
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fillStyle = color;
-
-    if (screenRadius > 3) {
-      ctx.shadowBlur = Math.min(30, screenRadius * 2);
-      ctx.shadowColor = color;
-    } else {
-      ctx.shadowBlur = 0;
-    }
-
+    ctx.beginPath();
+    ctx.arc(x, y, body.radius, 0, Math.PI * 2);
     ctx.fill();
-
-    ctx.shadowBlur = 0;
-    ctx.shadowColor = 'transparent';
 
     if (isSelected) {
       ctx.save();
       ctx.lineWidth = 2.0 / zoom;
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.setLineDash([3 / zoom, 3 / zoom]);
+      //ctx.setLineDash([3 / zoom, 3 / zoom]);
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
+
+    ctx.restore();
   }
 
   _drawTrail(body, zoom) {
@@ -270,6 +264,37 @@ export class Renderer {
 
     ctx.globalAlpha = 1.0;
     ctx.shadowBlur = 0;
+  }
+
+  _drawGlow(body, screenRadius) {
+    const { ctx } = this;
+    const x = body.position.x;
+    const y = body.position.y;
+    const color = body.color || '#ffffff';
+
+    ctx.save();
+
+    ctx.globalAlpha = 0.3;
+    ctx.shadowBlur = screenRadius * 0.45;
+    ctx.shadowColor = color;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, body.radius * 1.05, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.2;
+    ctx.shadowBlur = screenRadius * 0.95;
+    ctx.beginPath();
+    ctx.arc(x, y, body.radius * 1.25, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.1;
+    ctx.shadowBlur = screenRadius * 1.7;
+    ctx.beginPath();
+    ctx.arc(x, y, body.radius * 1.55, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
   }
 
   _drawDebrisShape(ctx, body, x, y, radius) {
