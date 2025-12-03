@@ -5,11 +5,10 @@ import { Body } from '../../engine/Body.js';
 import { generateDelaunayShapes } from '../logic/DebrisGenerator.js';
 
 export class CollisionResolver {
-  constructor({ G, softening, getTime, events }) {
+  constructor({ G, softening, getTime }) {
     this.G = G;
     this.softening = softening;
     this.getTime = getTime;
-    this.events = events;
   }
 
   /**

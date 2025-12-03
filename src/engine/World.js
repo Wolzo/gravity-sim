@@ -14,6 +14,7 @@ export class World {
     this.collisionCount = 0;
 
     this.stepsSinceLastTrail = 0;
+    this.fadingTrails = [];
 
     this.gravityTree = new QuadTree({ x: 0, y: 0, width: 1, height: 1 });
     this.collisionTree = new QuadTree({ x: 0, y: 0, width: 1, height: 1 });
@@ -24,7 +25,6 @@ export class World {
       G: PHYSICS.GRAVITY_CONSTANT,
       softening: PHYSICS.SOFTENING,
       getTime: () => this.time,
-      eventBus: this.eventBus,
     });
 
     this._initEvents();
@@ -34,6 +34,7 @@ export class World {
     this.eventBus.on('world:add-body', (body) => this.addBody(body));
     this.eventBus.on('world:remove-body', (body) => this.removeBody(body));
     this.eventBus.on('world:request-info', ({ callback }) => callback({ bodies: this.bodies }));
+    this.eventBus.on('world:clear', () => this.clear());
   }
 
   /**
@@ -44,7 +45,7 @@ export class World {
       return false;
     }
     this.bodies.push(body);
-    this.eventBus.emit('world:body-added', body);
+    //this.eventBus.emit('world:body-added', body);
     return true;
   }
 
@@ -55,7 +56,15 @@ export class World {
     const index = this.bodies.indexOf(body);
     if (index === -1) return false;
 
-    this.eventBus.emit('world:body-removed', body);
+    if (body.trail && body.trail.length > 2) {
+      this.fadingTrails.push({
+        points: body.trail,
+        color: body.color,
+        life: 1.0,
+      });
+    }
+
+    //this.eventBus.emit('world:body-removed', body);
     this.bodies.splice(index, 1);
     return true;
   }
@@ -67,6 +76,8 @@ export class World {
     this.bodies.length = 0;
     this.time = 0;
     this.collisionCount = 0;
+    this.fadingTrails = [];
+
     this.eventBus.emit('world:cleared', { collisionCount: this.collisionCount });
   }
 
@@ -92,6 +103,14 @@ export class World {
     Dynamics.applyGravity(this.bodies, this.gravityTree);
     Dynamics.integrateVelocity(this.bodies, dt);
     this._resolveCollisions();
+
+    for (let i = this.fadingTrails.length - 1; i >= 0; i--) {
+      const trailObj = this.fadingTrails[i];
+      trailObj.life -= dt * 0.5;
+      if (trailObj.life <= 0) {
+        this.fadingTrails.splice(i, 1);
+      }
+    }
 
     this.time += dt;
 
@@ -174,9 +193,11 @@ export class World {
         if (distSq < rSum * rSum) {
           const outcome = this.collisionResolver.computeOutcome(bi, bj);
 
-          if (Array.isArray(outcome) && outcome.length > 0) {
+          if (Array.isArray(outcome)) {
             for (const nb of outcome) {
-              generatedBodies.push(nb);
+              if (nb && Number.isFinite(nb.mass) && nb.mass > 0 && nb.radius > 0.5) {
+                generatedBodies.push(nb);
+              }
             }
           }
 
@@ -196,9 +217,21 @@ export class World {
     }
 
     if (deadBodies.size > 0 || generatedBodies.length > 0) {
-      for (const body of deadBodies) {
-        this.eventBus.emit('world:body-removed', body);
+      if (this.fadingTrails) {
+        for (const body of deadBodies) {
+          if (body.trail && body.trail.length > 2) {
+            this.fadingTrails.push({
+              points: body.trail,
+              color: body.color,
+              life: 1.0,
+            });
+          }
+        }
       }
+
+      /*for (const body of deadBodies) {
+        this.eventBus.emit('world:body-removed', body);
+      }*/
 
       let writeIdx = 0;
       for (let i = 0; i < n; i++) {

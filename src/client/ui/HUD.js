@@ -124,6 +124,8 @@ export class HUD {
     this.eventBus.on('camera:zoomed', (data) => {
       this.updateCameraString(data.toString);
     });
+
+    this.eventBus.on('sim:reset', () => this.resetSim());
   }
 
   updateCollisionCounter(collisionSummary) {
@@ -206,6 +208,7 @@ export class HUD {
   }
 
   resetSim() {
+    this.eventBus.emit('ui:clear-selection');
     this.eventBus.emit('ui:reset', this.currentSeedKey);
   }
 }

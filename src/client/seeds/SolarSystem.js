@@ -2,16 +2,16 @@ import { Body } from '../../engine/Body.js';
 import { Vec2 } from '../../shared/math/Vec2.js';
 import { massFromRadius, radiusFromMass, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
-export function seedSolarSystem({ world, eventBus }) {
-  if (!world) return;
-  world.clear();
+export function seedSolarSystem({ eventBus }) {
+  eventBus.emit('world:clear');
 
   const G = PHYSICS.GRAVITY_CONSTANT;
   const EARTH_MASS = 30 * 30 * PHYSICS.DENSITY_2D;
   const SUN_MASS = EARTH_MASS * 3000;
   const ORBIT_SCALE = 3500;
 
-  world.addBody(
+  eventBus.emit(
+    'world:add-body',
     new Body({
       position: new Vec2(0, 0),
       velocity: new Vec2(0, 0),
@@ -42,7 +42,8 @@ export function seedSolarSystem({ world, eventBus }) {
     const vel = new Vec2(-Math.sin(angle) * vMag, Math.cos(angle) * vMag);
     const mass = EARTH_MASS * p.m;
 
-    world.addBody(
+    eventBus.emit(
+      'world:add-body',
       new Body({
         position: pos,
         velocity: vel,
@@ -64,7 +65,8 @@ export function seedSolarSystem({ world, eventBus }) {
     const vel = new Vec2(-Math.sin(angle) * vMag, Math.cos(angle) * vMag);
 
     const r = 1.5 + Math.random() * 2;
-    world.addBody(
+    eventBus.emit(
+      'world:add-body',
       new Body({
         position: pos,
         velocity: vel,

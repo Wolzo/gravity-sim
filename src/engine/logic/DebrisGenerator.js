@@ -3,7 +3,7 @@ import Delaunator from 'delaunator';
 /**
  * Generates a simple jagged polygon shape for visual debris.
  */
-export function createDebrisShape() {
+function createDebrisShape() {
   const sides = 7 + Math.floor(Math.random() * 8);
   const vertexJitter = [];
 

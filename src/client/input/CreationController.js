@@ -24,11 +24,11 @@ export class CreationController {
   }
 
   _bindEvents() {
-    this.canvas.addEventListener('mousedown', (e) => this._onMouseDown(e));
-    this.canvas.addEventListener('mousemove', (e) => this._onMouseMove(e));
-    this.canvas.addEventListener('mouseup', (e) => this._onMouseUp(e));
-    this.canvas.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
-    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    window.addEventListener('mousedown', (e) => this._onMouseDown(e));
+    window.addEventListener('mousemove', (e) => this._onMouseMove(e));
+    window.addEventListener('mouseup', (e) => this._onMouseUp(e));
+    window.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('keydown', (e) => this._onKeyDown(e));
 
     this.eventBus.on('ui:clear-selection', () => this._setSelectedBody(null));

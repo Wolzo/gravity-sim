@@ -2,9 +2,8 @@ import { Body } from '../../engine/Body.js';
 import { Vec2 } from '../../shared/math/Vec2.js';
 import { massFromRadius, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
-export function seedBinaryDisk({ world, eventBus }) {
-  if (!world) return;
-  world.clear();
+export function seedBinaryDisk({ eventBus }) {
+  eventBus.emit('world:clear');
 
   const G = PHYSICS.GRAVITY_CONSTANT;
   const STAR_RADIUS = 40;
@@ -30,8 +29,8 @@ export function seedBinaryDisk({ world, eventBus }) {
     name: 'Beta',
   });
 
-  world.addBody(star1);
-  world.addBody(star2);
+  eventBus.emit('world:add-body', star1);
+  eventBus.emit('world:add-body', star2);
 
   const DISK_COUNT = 400;
   const MIN_R = SEPARATION * 2.5;
@@ -47,7 +46,8 @@ export function seedBinaryDisk({ world, eventBus }) {
     const vel = new Vec2(-Math.sin(angle) * vMag, Math.cos(angle) * vMag);
     const r = 1.5 + Math.random() * 2.5;
 
-    world.addBody(
+    eventBus.emit(
+      'world:add-body',
       new Body({
         position: pos,
         velocity: vel,

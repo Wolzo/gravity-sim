@@ -2,9 +2,8 @@ import { Body } from '../../engine/Body.js';
 import { Vec2 } from '../../shared/math/Vec2.js';
 import { massFromRadius, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
-export function seedGalacticCollision({ world, eventBus }) {
-  if (!world) return;
-  world.clear();
+export function seedGalacticCollision({ eventBus }) {
+  eventBus.emit('world:clear');
 
   const G = PHYSICS.GRAVITY_CONSTANT;
 
@@ -13,7 +12,8 @@ export function seedGalacticCollision({ world, eventBus }) {
     const COUNT = 250;
     const RADIUS = 600;
 
-    world.addBody(
+    eventBus.emit(
+      'world:add-body',
       new Body({
         position: new Vec2(centerX, centerY),
         velocity: new Vec2(velocityX, velocityY),
@@ -36,7 +36,8 @@ export function seedGalacticCollision({ world, eventBus }) {
         Math.cos(theta) * vOrbital * dir
       );
 
-      world.addBody(
+      eventBus.emit(
+        'world:add-body',
         new Body({
           position: new Vec2(centerX + localPos.x, centerY + localPos.y),
           velocity: new Vec2(velocityX + localVel.x, velocityY + localVel.y),

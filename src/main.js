@@ -27,13 +27,13 @@ window.addEventListener('load', () => eventBus.emit('window:resize', window.visu
 window.addEventListener('resize', () => eventBus.emit('window:resize', window.visualViewport));
 
 if (SEEDS[DEFAULT_SEED_KEY]) {
-  SEEDS[DEFAULT_SEED_KEY].apply({ world, renderer, eventBus });
+  SEEDS[DEFAULT_SEED_KEY].apply({ eventBus });
 }
 
 eventBus.on('ui:reset', (seedKey) => {
   const seed = SEEDS[seedKey];
   if (seed && typeof seed.apply === 'function') {
-    seed.apply({ world, renderer, eventBus });
+    seed.apply({ eventBus });
   }
 });
 

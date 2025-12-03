@@ -2,15 +2,15 @@ import { Body } from '../../engine/Body.js';
 import { Vec2 } from '../../shared/math/Vec2.js';
 import { massFromRadius, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
-export function seedKesslerSyndrome({ world, eventBus }) {
-  if (!world) return;
-  world.clear();
+export function seedKesslerSyndrome({ eventBus }) {
+  eventBus.emit('world:clear');
 
   const G = PHYSICS.GRAVITY_CONSTANT;
   const PLANET_RADIUS = 60;
   const PLANET_MASS = massFromRadius(PLANET_RADIUS) * 5;
 
-  world.addBody(
+  eventBus.emit(
+    'world:add-body',
     new Body({
       position: new Vec2(0, 0),
       velocity: new Vec2(0, 0),
@@ -37,7 +37,8 @@ export function seedKesslerSyndrome({ world, eventBus }) {
       const vMag = Math.sqrt((G * PLANET_MASS) / r);
       const vel = new Vec2(-Math.sin(angle) * vMag * dir, Math.cos(angle) * vMag * dir);
 
-      world.addBody(
+      eventBus.emit(
+        'world:add-body',
         new Body({
           position: pos,
           velocity: vel,

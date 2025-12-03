@@ -1,4 +1,4 @@
-import { PHYSICS } from '../config/PhysicsConfig.js';
+import { PHYSICS, massFromRadius } from '../config/PhysicsConfig.js';
 import { pseudoRandom } from '../math/MathUtils.js';
 
 const PALETTES = {
@@ -10,7 +10,7 @@ const PALETTES = {
 
 function classifyBodyType(mass) {
   const m = Math.max(mass || 1, 1e-12);
-  const ratio = m / PHYSICS.EARTH_MASS_UNITS;
+  const ratio = m / massFromRadius(PHYSICS.EARTH_RADIUS_UNITS);
 
   if (ratio >= 200) return 'star';
   if (ratio >= 20) return 'gasGiant';

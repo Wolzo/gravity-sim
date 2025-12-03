@@ -2,9 +2,8 @@ import { Body } from '../../engine/Body.js';
 import { Vec2 } from '../../shared/math/Vec2.js';
 import { massFromRadius, radiusFromMass, PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
-export function seedGalaxy({ world, eventBus }) {
-  if (!world) return;
-  world.clear();
+export function seedGalaxy({ eventBus }) {
+  eventBus.emit('world:clear');
 
   const G = PHYSICS.GRAVITY_CONSTANT;
   const CORE_MASS = 80000;
@@ -13,7 +12,8 @@ export function seedGalaxy({ world, eventBus }) {
   const ARM_TWIST = 4.0;
   const GALAXY_RADIUS = 3000;
 
-  world.addBody(
+  eventBus.emit(
+    'world:add-body',
     new Body({
       position: new Vec2(0, 0),
       velocity: new Vec2(0, 0),
@@ -39,7 +39,8 @@ export function seedGalaxy({ world, eventBus }) {
     let color = '#7ca1ff';
     if (d < GALAXY_RADIUS * 0.3) color = '#ffdb6b';
 
-    world.addBody(
+    eventBus.emit(
+      'world:add-body',
       new Body({
         position: pos,
         velocity: vel,
