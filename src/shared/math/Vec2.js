@@ -50,10 +50,6 @@ export class Vec2 {
     return Math.sqrt(this.lengthSq());
   }
 
-  static subtract(a, b) {
-    return new Vec2(a.x - b.x, a.y - b.y);
-  }
-
   /**
    * Static pool for reusing vector instances
    */

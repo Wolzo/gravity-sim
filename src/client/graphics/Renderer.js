@@ -1,5 +1,9 @@
 import { RENDER, CREATION_STATES } from '../../shared/config/RenderConfig.js';
 import { StarBackground } from './StarBackground.js';
+import { GlowSprites, GLOW_SCALE } from './GlowSprites.js';
+
+/** Number of alpha/width steps used to fade a trail from tail to head. */
+const TRAIL_BANDS = 6;
 
 /**
  * Minimal 2D renderer for the gravity simulation.
@@ -13,6 +17,16 @@ export class Renderer {
     this.selectedBody = null;
     this.eventBus = eventBus;
     this.preview = null;
+
+    this.glowSprites = new GlowSprites();
+
+    /**
+     * Living trails bucketed by colour, reused every frame.
+     * strokeStyle cannot change mid-path, so batching the banded fade requires one
+     * bucket per colour; this keeps the stroke count at (colours x bands) instead of
+     * (bodies x bands).
+     */
+    this.trailBuckets = new Map();
 
     this._resize();
     this._initEvents();
@@ -43,6 +57,8 @@ export class Renderer {
     this.canvas.height = rect.height * this.dpr;
 
     this.ctx.imageSmoothingEnabled = true;
+
+    if (this.starBackground) this.starBackground.resize();
   }
 
   draw(cameraX, cameraY, cameraZoom, bodies, fadingTrails) {
@@ -59,10 +75,7 @@ export class Renderer {
     ctx.fillStyle = '#08090c';
     ctx.fillRect(0, 0, width, height);
 
-    ctx.restore();
-    ctx.save();
-
-    this.starBackground.draw(ctx, camX, camY, dpr, width, height);
+    this.starBackground.draw(ctx, camX, camY, width, height);
 
     ctx.restore();
     ctx.save();
@@ -88,15 +101,7 @@ export class Renderer {
     const viewRight = camX + viewHalfW;
     const viewBottom = camY + viewHalfH;
 
-    if (fadingTrails) {
-      for (const ft of fadingTrails) {
-        this._drawPolyLine(ft.points, ft.color, ft.life * 0.4, zoom, false);
-      }
-    }
-
-    for (const body of bodies) {
-      this._drawTrail(body, zoom);
-    }
+    this._drawTrails(bodies, fadingTrails, zoom, viewLeft, viewTop, viewRight, viewBottom);
 
     for (const body of bodies) {
       const r = body.radius;
@@ -115,6 +120,117 @@ export class Renderer {
     ctx.restore();
   }
 
+  /**
+   * Draws every visible trail.
+   *
+   * Living trails are bucketed by colour and stroked band by band, so the alpha and
+   * width gradient is actually rendered: Canvas2D resolves globalAlpha/lineWidth at
+   * `stroke()` time, so the previous version — which varied them inside the loop but
+   * issued a single stroke — paid for the gradient without ever showing it.
+   *
+   * Fading trails get one flat stroke each: they are short-lived and comparatively few,
+   * and their alpha already carries the dissolve.
+   */
+  _drawTrails(bodies, fadingTrails, zoom, viewLeft, viewTop, viewRight, viewBottom) {
+    const { ctx } = this;
+
+    for (const bucket of this.trailBuckets.values()) bucket.length = 0;
+
+    for (const body of bodies) {
+      const trail = body.trail;
+      if (trail.length < 2) continue;
+      if (!trail.intersectsRect(viewLeft, viewTop, viewRight, viewBottom)) continue;
+
+      const color = body.color || '#ffffff';
+      let bucket = this.trailBuckets.get(color);
+      if (!bucket) {
+        bucket = [];
+        this.trailBuckets.set(color, bucket);
+      }
+      bucket.push(trail);
+    }
+
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const baseWidth = 1.5 / zoom;
+
+    for (const [color, bucket] of this.trailBuckets) {
+      if (bucket.length === 0) continue;
+
+      ctx.strokeStyle = color;
+
+      for (let band = 0; band < TRAIL_BANDS; band++) {
+        const t0 = band / TRAIL_BANDS;
+        const t1 = (band + 1) / TRAIL_BANDS;
+        const tMid = (t0 + t1) * 0.5;
+
+        ctx.globalAlpha = tMid * tMid * 0.55;
+        ctx.lineWidth = baseWidth * (0.3 + 0.7 * tMid);
+
+        ctx.beginPath();
+        for (const trail of bucket) {
+          this._emitTrailBand(trail, t0, t1, zoom);
+        }
+        ctx.stroke();
+      }
+    }
+
+    if (fadingTrails) {
+      for (const ft of fadingTrails) {
+        const trail = ft.trail;
+        if (!trail || trail.length < 2) continue;
+        if (!trail.intersectsRect(viewLeft, viewTop, viewRight, viewBottom)) continue;
+
+        ctx.strokeStyle = ft.color || '#ffffff';
+        ctx.globalAlpha = Math.max(0, ft.life) * 0.4;
+        ctx.lineWidth = baseWidth;
+
+        ctx.beginPath();
+        this._emitTrailBand(trail, 0, 1, zoom);
+        ctx.stroke();
+      }
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  /**
+   * Appends the [t0, t1] slice of a trail to the current path.
+   * Bands share their boundary vertex so consecutive bands join without gaps.
+   */
+  _emitTrailBand(trail, t0, t1, zoom) {
+    const n = trail.length;
+    if (n < 2) return;
+
+    const last = n - 1;
+    const from = Math.floor(t0 * last);
+    const to = Math.ceil(t1 * last);
+    if (to <= from) return;
+
+    let stride = 1;
+    if (zoom < 0.5) stride = 2;
+    if (zoom < 0.1) stride = 3;
+    if (zoom < 0.05) stride = 5;
+    if (zoom < 0.01) stride = 10;
+
+    const span = to - from;
+    const maxVerts = Math.ceil(2000 / TRAIL_BANDS);
+    if (span / stride > maxVerts) {
+      stride = Math.ceil(span / maxVerts);
+    }
+
+    const { ctx } = this;
+    ctx.moveTo(trail.getX(from), trail.getY(from));
+
+    for (let i = from + stride; i < to; i += stride) {
+      ctx.lineTo(trail.getX(i), trail.getY(i));
+    }
+
+    // Always land exactly on the band boundary, whatever the stride.
+    ctx.lineTo(trail.getX(to), trail.getY(to));
+  }
+
   _drawPreview(zoom) {
     const { ctx } = this;
     if (this.preview && this.preview.center) {
@@ -125,10 +241,10 @@ export class Renderer {
         ctx.save();
         ctx.beginPath();
         ctx.arc(c.x, c.y, this.preview.radius, 0, Math.PI * 2);
-        ctx.fillStyle = RENDER.COLOR_PREVIEW_FILL || 'rgba(255,255,255,0.08)';
+        ctx.fillStyle = RENDER.COLOR_PREVIEW_FILL;
         ctx.fill();
         ctx.lineWidth = 1 / zoom;
-        ctx.strokeStyle = RENDER.COLOR_PREVIEW_STROKE || 'rgba(255,255,255,0.9)';
+        ctx.strokeStyle = RENDER.COLOR_PREVIEW_STROKE;
         ctx.stroke();
         ctx.restore();
       }
@@ -156,7 +272,7 @@ export class Renderer {
           ctx.moveTo(startX, startY);
           ctx.lineTo(endX, endY);
           ctx.lineWidth = 2 / zoom;
-          ctx.strokeStyle = RENDER.COLOR_ARROW || '#ffffff';
+          ctx.strokeStyle = RENDER.COLOR_ARROW;
           ctx.stroke();
 
           ctx.beginPath();
@@ -170,7 +286,7 @@ export class Renderer {
             endY - uy * headSize - ux * (headSize * 0.5)
           );
           ctx.closePath();
-          ctx.fillStyle = RENDER.COLOR_ARROW || '#ffffff';
+          ctx.fillStyle = RENDER.COLOR_ARROW;
           ctx.fill();
           ctx.restore();
         }
@@ -183,10 +299,7 @@ export class Renderer {
     const x = body.position.x;
     const y = body.position.y;
     const radius = body.radius;
-
     const color = body.color || '#ffffff';
-
-    const screenRadius = radius * zoom;
 
     if (body.isDebris && body.shape) {
       ctx.fillStyle = color;
@@ -194,156 +307,77 @@ export class Renderer {
       return;
     }
 
+    const screenRadius = radius * zoom;
     if (screenRadius > 2) {
-      this._drawGlow(body, screenRadius);
+      this._drawGlow(body, color);
     }
-    ctx.save();
 
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(x, y, body.radius, 0, Math.PI * 2);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
 
     if (isSelected) {
-      ctx.save();
-      ctx.lineWidth = 2.0 / zoom;
+      ctx.lineWidth = 1.8 / zoom;
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-      //ctx.setLineDash([3 / zoom, 3 / zoom]);
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.restore();
     }
-
-    ctx.restore();
   }
 
-  _drawTrail(body, zoom) {
-    if (body.trail.length < 2) return;
-    this._drawPolyLine(body.trail, body.color, 0.4, zoom, true);
-  }
-
-  _drawPolyLine(points, color, opacity, zoom, isLiving) {
-    const len = points.length;
-    if (len < 2) return;
-
+  /**
+   * Blits the cached glow texture for this body's colour, scaled to its radius.
+   */
+  _drawGlow(body, color) {
     const { ctx } = this;
+    const sprite = this.glowSprites.get(color);
+    const size = body.radius * GLOW_SCALE;
+    const half = size / 2;
 
-    let stride = 1;
-    if (zoom < 0.5) stride = 2;
-    if (zoom < 0.1) stride = 4;
-    if (zoom < 0.05) stride = 8;
-    if (zoom < 0.01) stride = 20;
-
-    const maxVerts = 2000;
-    if (len / stride > maxVerts) {
-      stride = Math.ceil(len / maxVerts);
-    }
-
-    ctx.lineWidth = (isLiving ? 1.5 : 1.0) / zoom;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    ctx.strokeStyle = color || '#ffffff';
-    ctx.globalAlpha = opacity;
-
-    ctx.beginPath();
-    let firstPoint = true;
-
-    for (let i = 0; i < len; i += stride) {
-      const p = points[i];
-      if (firstPoint) {
-        ctx.moveTo(p.x, p.y);
-        firstPoint = false;
-      } else {
-        ctx.lineTo(p.x, p.y);
-      }
-    }
-
-    ctx.stroke();
-
-    ctx.globalAlpha = 1.0;
-    ctx.shadowBlur = 0;
-  }
-
-  _drawGlow(body, screenRadius) {
-    const { ctx } = this;
-    const x = body.position.x;
-    const y = body.position.y;
-    const color = body.color || '#ffffff';
-
-    ctx.save();
-
-    ctx.globalAlpha = 0.3;
-    ctx.shadowBlur = screenRadius * 0.45;
-    ctx.shadowColor = color;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(x, y, body.radius * 1.05, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.globalAlpha = 0.2;
-    ctx.shadowBlur = screenRadius * 0.95;
-    ctx.beginPath();
-    ctx.arc(x, y, body.radius * 1.25, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.globalAlpha = 0.1;
-    ctx.shadowBlur = screenRadius * 1.7;
-    ctx.beginPath();
-    ctx.arc(x, y, body.radius * 1.55, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
+    ctx.drawImage(sprite, body.position.x - half, body.position.y - half, size, size);
   }
 
   _drawDebrisShape(ctx, body, x, y, radius) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (body.angle) ctx.rotate(body.angle);
+
+    ctx.beginPath();
+
     if (Array.isArray(body.shape) && body.shape.length > 0) {
-      ctx.save();
-      ctx.translate(x, y);
-
-      if (body.angle) ctx.rotate(body.angle);
-
-      ctx.beginPath();
       const v = body.shape;
-
       ctx.moveTo(v[0][0], v[0][1]);
       for (let i = 1; i < v.length; i++) {
         ctx.lineTo(v[i][0], v[i][1]);
       }
-      ctx.closePath();
+    } else {
+      const shape = body.shape || {};
+      const sides = Math.max(3, shape.sides || 6);
+      const jitter = shape.vertexJitter;
 
-      ctx.fillStyle = body.color;
-      ctx.fill();
+      for (let i = 0; i < sides; i++) {
+        const t = (i / sides) * Math.PI * 2;
+        const r = radius * (jitter ? jitter[i % jitter.length] : 1);
+        const px = Math.cos(t) * r;
+        const py = Math.sin(t) * r;
 
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = radius * 0.2;
-      ctx.strokeStyle = body.color;
-      ctx.stroke();
-
-      ctx.restore();
-      return;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
     }
 
-    const shape = body.shape || {};
-    const sides = Math.max(3, shape.sides || 6);
-    const angle = shape.angle || 0;
-
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-
-    ctx.beginPath();
-    for (let i = 0; i < sides; i++) {
-      const t = (i / sides) * Math.PI * 2;
-      const px = Math.cos(t) * radius;
-      const py = Math.sin(t) * radius;
-
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
     ctx.closePath();
+
+    ctx.fillStyle = body.color;
     ctx.fill();
+
+    // A thick same-colour stroke fattens sub-pixel shards so they stay visible.
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = radius * 0.2;
+    ctx.strokeStyle = body.color;
+    ctx.stroke();
+
     ctx.restore();
   }
 }

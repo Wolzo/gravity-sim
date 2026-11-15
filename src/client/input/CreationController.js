@@ -83,8 +83,8 @@ export class CreationController {
       case 'Delete':
       case 'Backspace':
         if (this.selectedBody) {
-          this._setSelectedBody(null);
           this.eventBus.emit('world:remove-body', this.selectedBody);
+          this._setSelectedBody(null);
         }
         break;
       case 'ArrowUp':

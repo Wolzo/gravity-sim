@@ -1,5 +1,6 @@
 import { Vec2 } from '../../shared/math/Vec2.js';
 import { PHYSICS } from '../../shared/config/PhysicsConfig.js';
+import { clamp } from '../../shared/math/MathUtils.js';
 
 class Node {
   constructor(x, y, size, depth) {
@@ -12,16 +13,12 @@ class Node {
     this.centerOfMass = new Vec2(0, 0);
 
     this.body = null;
+    /** Extra bodies that landed in this cell at MAX_DEPTH; null when unused. */
+    this.overflow = null;
     this.children = null;
   }
 
   static pool = [];
-
-  static warmup(count) {
-    for (let i = 0; i < count; i++) {
-      this.pool.push(new Node(0, 0, 0, 0));
-    }
-  }
 
   static pop(x, y, size, depth) {
     const node = this.pool.pop();
@@ -44,6 +41,7 @@ class Node {
     this.mass = 0;
     this.centerOfMass.set(0, 0);
     this.body = null;
+    this.overflow = null;
     this.children = null;
   }
 
@@ -57,6 +55,8 @@ class Node {
       }
       this.children = null;
     }
+    this.body = null;
+    this.overflow = null;
     Node.pool.push(this);
   }
 
@@ -69,8 +69,7 @@ class Node {
     this.centerOfMass.set(wx, wy);
 
     if (this.children) {
-      const quadrant = this._getQuadrant(body);
-      this.children[quadrant].insert(body);
+      this.children[this._getQuadrant(body)].insert(body);
       return;
     }
 
@@ -88,7 +87,15 @@ class Node {
 
       const newBodyQuad = this._getQuadrant(body);
       this.children[newBodyQuad].insert(body);
+      return;
     }
+
+    // At MAX_DEPTH we can no longer subdivide. Keeping the body in an overflow list
+    // (rather than dropping it, as an earlier version did) matters twice over: it
+    // stays discoverable by query(), and gravity can subtract its own contribution
+    // instead of letting it attract itself through this cell's center of mass.
+    if (this.overflow) this.overflow.push(body);
+    else this.overflow = [body];
   }
 
   _subdivide() {
@@ -116,7 +123,7 @@ class Node {
   }
 
   /**
-   * Recursively finds bodies within the defined circular range.
+   * Recursively collects bodies whose cell overlaps the circular range into `found`.
    * range: { x, y, r } (center x, center y, radius)
    */
   query(range, found) {
@@ -141,6 +148,12 @@ class Node {
       found.push(this.body);
     }
 
+    if (this.overflow) {
+      for (let i = 0; i < this.overflow.length; i++) {
+        found.push(this.overflow[i]);
+      }
+    }
+
     if (this.children) {
       this.children[0].query(range, found);
       this.children[1].query(range, found);
@@ -151,10 +164,21 @@ class Node {
 }
 
 export class QuadTree {
-  constructor(bounds, theta = 0.5) {
-    this.theta = theta;
+  constructor(bounds, theta = PHYSICS.THETA) {
+    this.setTheta(theta);
     this.root = null;
+    this._queryResult = [];
     this.reset(bounds);
+  }
+
+  /**
+   * Theta is clamped below 1/sqrt(2): above that a node containing the evaluated
+   * body could satisfy the opening criterion, and the body would attract itself
+   * through that node's center of mass.
+   */
+  setTheta(theta) {
+    this.theta = clamp(theta, 0.05, PHYSICS.THETA_MAX);
+    this.thetaSq = this.theta * this.theta;
   }
 
   reset(bounds) {
@@ -162,7 +186,7 @@ export class QuadTree {
       Node.push(this.root);
     }
 
-    const size = Math.max(bounds.width, bounds.height);
+    const size = Math.max(bounds.width, bounds.height, 1e-6);
     this.root = Node.pop(bounds.x, bounds.y, size, 0);
   }
 
@@ -171,48 +195,71 @@ export class QuadTree {
   }
 
   /**
-   * Returns all bodies within the given radius of (x, y).
+   * Returns bodies within `radius` of (x, y).
+   * The returned array is reused across calls — copy it if you need to retain it.
    */
   query(x, y, radius) {
-    const found = [];
-    const range = { x, y, r: radius };
-    this.root.query(range, found);
+    const found = this._queryResult;
+    found.length = 0;
+    this.root.query({ x, y, r: radius }, found);
     return found;
   }
 
-  calculateForce(body, G, softening) {
-    const force = new Vec2(0, 0);
-    this._calculateForceRecursive(this.root, body, G, softening, force);
-    return force;
+  /**
+   * Adds the gravitational acceleration exerted by the tree onto `body.acceleration`.
+   * Writes in place rather than returning a vector: at MAX_BODIES the previous
+   * version allocated ~60k throwaway Vec2 per second.
+   */
+  accumulateAcceleration(body, G, softening) {
+    this._accumulate(this.root, body, G, softening);
   }
 
-  _calculateForceRecursive(node, body, G, softening, forceAcc) {
-    if (node.mass === 0 || node.body === body) return;
+  _accumulate(node, body, G, softening) {
+    if (node.mass === 0) return;
 
-    const dx = node.centerOfMass.x - body.position.x;
-    const dy = node.centerOfMass.y - body.position.y;
-    const distSq = dx * dx + dy * dy;
+    if (node.children) {
+      const dx = node.centerOfMass.x - body.position.x;
+      const dy = node.centerOfMass.y - body.position.y;
+      const distSq = dx * dx + dy * dy;
 
-    const dist = Math.sqrt(distSq);
-    const size = node.size;
+      // Opening criterion `size / dist < theta`, squared to avoid a sqrt per node.
+      // When distSq is 0 the test fails and we descend, so there is no division by zero.
+      if (node.size * node.size < this.thetaSq * distSq) {
+        this._pull(body, node.mass, dx, dy, distSq, G, softening);
+        return;
+      }
 
-    if (node.children && size / dist < this.theta) {
-      this._applyGravity(G, softening, node.mass, dx, dy, distSq, dist, forceAcc);
-    } else if (node.body) {
-      this._applyGravity(G, softening, node.mass, dx, dy, distSq, dist, forceAcc);
-    } else if (node.children) {
-      for (const child of node.children) {
-        this._calculateForceRecursive(child, body, G, softening, forceAcc);
+      this._accumulate(node.children[0], body, G, softening);
+      this._accumulate(node.children[1], body, G, softening);
+      this._accumulate(node.children[2], body, G, softening);
+      this._accumulate(node.children[3], body, G, softening);
+      return;
+    }
+
+    // Leaf: sum the real bodies instead of the aggregate, so `body` is excluded exactly.
+    if (node.body && node.body !== body) {
+      this._pullToward(body, node.body, G, softening);
+    }
+
+    if (node.overflow) {
+      for (let i = 0; i < node.overflow.length; i++) {
+        const other = node.overflow[i];
+        if (other !== body) this._pullToward(body, other, G, softening);
       }
     }
   }
 
-  _applyGravity(G, softening, mass, dx, dy, distSq, dist, forceAcc) {
-    const softSq = softening * softening;
-    const invDist3 = 1.0 / ((distSq + softSq) * Math.sqrt(distSq + softSq));
-    const factor = G * mass * invDist3;
+  _pullToward(body, other, G, softening) {
+    const dx = other.position.x - body.position.x;
+    const dy = other.position.y - body.position.y;
+    this._pull(body, other.mass, dx, dy, dx * dx + dy * dy, G, softening);
+  }
 
-    forceAcc.x += dx * factor;
-    forceAcc.y += dy * factor;
+  _pull(body, mass, dx, dy, distSq, G, softening) {
+    const soft = distSq + softening * softening;
+    const factor = (G * mass) / (soft * Math.sqrt(soft));
+
+    body.acceleration.x += dx * factor;
+    body.acceleration.y += dy * factor;
   }
 }

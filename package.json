@@ -1,27 +1,39 @@
 {
   "name": "gravity-sim",
   "version": "1.0.0",
-  "description": "A simple gravity simulator built with JavaScript and HTML5 Canvas.",
-  "main": "index.js",
+  "description": "A gravity simulator built with JavaScript and HTML5 Canvas.",
+  "type": "module",
   "scripts": {
-    "start": "live-server --port=8080 --open=index.html"
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Wolzo/gravity-sim.git"
   },
-  "keywords": [],
+  "keywords": [
+    "gravity",
+    "n-body",
+    "barnes-hut",
+    "simulation",
+    "canvas"
+  ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Wolzo/gravity-sim/issues"
   },
   "homepage": "https://github.com/Wolzo/gravity-sim#readme",
   "devDependencies": {
-    "live-server": "^1.2.2",
     "prettier": "^3.6.2",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vitest": "^3.2.4"
   },
   "dependencies": {
     "delaunator": "^5.0.1"

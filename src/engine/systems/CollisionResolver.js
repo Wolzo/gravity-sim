@@ -22,8 +22,8 @@ export class CollisionResolver {
 
     if (totalMass <= 0) return [];
 
-    const ratio = m1 > m2 ? m1 / m2 : m2 / m1;
-    if (ratio > 1000) {
+    const massRatio = m1 >= m2 ? m1 / m2 : m2 / m1;
+    if (massRatio > 1000) {
       return [this._createMergedBody(b1, b2)];
     }
 
@@ -33,7 +33,6 @@ export class CollisionResolver {
     const p2 = b2.position;
 
     const normal = Vec2.pop();
-    const tangent = Vec2.pop();
     const vcm = Vec2.pop();
 
     try {
@@ -48,7 +47,6 @@ export class CollisionResolver {
       }
 
       normal.set(dx / dist, dy / dist);
-      tangent.set(-normal.y, normal.x);
 
       const relVx = v1.x - v2.x;
       const relVy = v1.y - v2.y;
@@ -60,7 +58,6 @@ export class CollisionResolver {
       const vEsc = computeEscapeVelocity(this.G, totalMass, R_eff, this.softening);
       const alpha = vEsc > 1e-6 ? speedRel / vEsc : 0;
 
-      const massRatio = m1 >= m2 ? m1 / m2 : m2 / m1;
       const time = this.getTime() || 0;
 
       if (alpha < PHYSICS.ALPHA_MERGE) {
@@ -70,13 +67,12 @@ export class CollisionResolver {
       if (massRatio > PHYSICS.MASS_RATIO_BIG) {
         const big = m1 >= m2 ? b1 : b2;
         const small = big === b1 ? b2 : b1;
-        return this._collisionBigSmall(big, small, alpha, normal, tangent, vcm);
+        return this._collisionBigSmall(big, small, alpha, normal, vcm);
       }
 
-      return this._fragmentBoth(b1, b2, alpha, normal, tangent, vcm, time);
+      return this._fragmentBoth(b1, b2, alpha, normal, vcm, time);
     } finally {
       Vec2.push(normal);
-      Vec2.push(tangent);
       Vec2.push(vcm);
     }
   }
@@ -103,13 +99,16 @@ export class CollisionResolver {
     return mergedBody;
   }
 
-  _collisionBigSmall(big, small, alpha, normal, _tangent, vcm) {
+  _collisionBigSmall(big, small, alpha, normal, vcm) {
     const mBig = big.mass;
     const mSmall = small.mass;
     const totalMass = mBig + mSmall;
 
+    // `destructionFactor` ramps from 0.2 at a grazing impact up to a 0.8 ceiling.
+    // This used to be Math.max(0.8, ...), which pinned the result at >= 0.8 and made
+    // the whole ramp dead code: even the gentlest impact shattered 80% of the body.
     const destructionFactor = Math.min(1.0, 0.2 + alpha * 0.5);
-    const fragmentMassTotal = mSmall * Math.max(0.8, destructionFactor);
+    const fragmentMassTotal = mSmall * Math.min(0.8, destructionFactor);
     const mergedMass = mBig + (mSmall - fragmentMassTotal);
     const mergedRadius = big.radius * Math.sqrt(mergedMass / mBig);
 
@@ -140,7 +139,7 @@ export class CollisionResolver {
       name: big.name,
     });
 
-    mergedBody.collisionCooldown = this.getTime() + 0.5;
+    mergedBody.collisionCooldown = this.getTime() + PHYSICS.COLLISION_COOLDOWN;
     const newBodies = [mergedBody];
 
     if (alpha > PHYSICS.VAPORIZE_THRESHOLD || fragmentMassTotal <= 0 || mergedRadius <= 0) {
@@ -194,7 +193,8 @@ export class CollisionResolver {
 
         frag.isDebris = true;
         frag.shape = debrisShapes[k % debrisShapes.length];
-        frag.collisionCooldown = this.getTime() + 0.5;
+        frag.angle = Math.random() * Math.PI * 2;
+        frag.collisionCooldown = this.getTime() + PHYSICS.COLLISION_COOLDOWN;
 
         newBodies.push(frag);
       }
@@ -205,7 +205,7 @@ export class CollisionResolver {
     return newBodies;
   }
 
-  _fragmentBoth(b1, b2, alpha, normal, _tangent, vcm, time) {
+  _fragmentBoth(b1, b2, alpha, normal, vcm, time) {
     const m1 = b1.mass;
     const m2 = b2.mass;
 
@@ -237,7 +237,7 @@ export class CollisionResolver {
         color: b1.color,
         name: b1.name,
       });
-      core1.collisionCooldown = (time || 0) + 0.5;
+      core1.collisionCooldown = (time || 0) + PHYSICS.COLLISION_COOLDOWN;
       newBodies.push(core1);
     }
 
@@ -250,7 +250,7 @@ export class CollisionResolver {
         color: b2.color,
         name: b2.name,
       });
-      core2.collisionCooldown = (time || 0) + 0.5;
+      core2.collisionCooldown = (time || 0) + PHYSICS.COLLISION_COOLDOWN;
       newBodies.push(core2);
     }
 
@@ -319,7 +319,8 @@ export class CollisionResolver {
 
       frag.isDebris = true;
       frag.shape = debrisShapes[k % debrisShapes.length];
-      frag.collisionCooldown = this.getTime() + 0.5;
+      frag.angle = Math.random() * Math.PI * 2;
+      frag.collisionCooldown = this.getTime() + PHYSICS.COLLISION_COOLDOWN;
 
       newBodies.push(frag);
     }

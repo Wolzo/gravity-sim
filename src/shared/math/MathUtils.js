@@ -47,17 +47,3 @@ export function computeEscapeVelocity(G, totalMass, radius, softening = 0) {
   }
   return Math.sqrt((2 * G * totalMass) / denom);
 }
-
-/**
- * Calculates the center-of-mass velocity for a two-body system.
- */
-export function computeCenterOfMassVelocity(m1, v1, m2, v2) {
-  const totalMass = m1 + m2;
-  if (!Number.isFinite(totalMass) || totalMass === 0) {
-    return { x: 0, y: 0 };
-  }
-  return {
-    x: (v1.x * m1 + v2.x * m2) / totalMass,
-    y: (v1.y * m1 + v2.y * m2) / totalMass,
-  };
-}

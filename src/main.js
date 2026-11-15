@@ -21,10 +21,23 @@ if (typeof window !== 'undefined') {
   window.world = world;
   window.renderer = renderer;
   window.camera = camera;
+  window.creationController = creationController;
+  window.hud = hud;
 }
 
-window.addEventListener('load', () => eventBus.emit('window:resize', window.visualViewport));
-window.addEventListener('resize', () => eventBus.emit('window:resize', window.visualViewport));
+/**
+ * The canvas is the single source of truth for the viewport: the Camera needs the same
+ * dimensions the Renderer draws with, or screen-to-world picking drifts.
+ */
+function emitViewport() {
+  const rect = canvas.getBoundingClientRect();
+  eventBus.emit('window:resize', { width: rect.width, height: rect.height });
+}
+
+window.addEventListener('resize', emitViewport);
+// Emitted synchronously as well: if the module runs after `load` has already fired,
+// a load-only listener would never run and the camera would keep a 0x0 viewport.
+emitViewport();
 
 if (SEEDS[DEFAULT_SEED_KEY]) {
   SEEDS[DEFAULT_SEED_KEY].apply({ eventBus });
@@ -37,9 +50,12 @@ eventBus.on('ui:reset', (seedKey) => {
   }
 });
 
+const FIXED_STEP = PHYSICS.FIXED_TIME_STEP;
+const MAX_STEPS = PHYSICS.MAX_STEPS_PER_FRAME;
+const MAX_BACKLOG = FIXED_STEP * MAX_STEPS;
+
 let lastTime = performance.now();
 let accumulator = 0;
-const FIXED_STEP = PHYSICS.FIXED_TIME_STEP;
 
 let isRunning = true;
 let wasRunningBeforePause = false;
@@ -74,16 +90,26 @@ function loop(now) {
   }
   lastTime = now;
 
-  accumulator += dt * timeScale;
+  if (isRunning) {
+    accumulator += dt * timeScale;
 
-  let steps = 0;
-  while (accumulator >= FIXED_STEP && steps < 2) {
-    if (isRunning) {
-      world.step(FIXED_STEP);
+    // Hard cap on the backlog. Without it, any timeScale demanding more than
+    // MAX_STEPS per frame grows the accumulator without bound: the simulation stays
+    // pinned at MAX_STEPS x realtime and then keeps running fast for minutes after the
+    // speed slider is turned back down, while it drains the arrears.
+    if (accumulator > MAX_BACKLOG) {
+      accumulator = MAX_BACKLOG;
     }
 
-    accumulator -= FIXED_STEP;
-    steps++;
+    let steps = 0;
+    while (accumulator >= FIXED_STEP && steps < MAX_STEPS) {
+      world.step(FIXED_STEP);
+      accumulator -= FIXED_STEP;
+      steps++;
+    }
+  } else {
+    // Do not bank time while paused.
+    accumulator = 0;
   }
 
   eventBus.emit('frame:render', {

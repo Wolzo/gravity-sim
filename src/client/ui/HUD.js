@@ -21,6 +21,7 @@ export class HUD {
     this.fpsCounter = document.getElementById('fps-counter');
     this.bodiesCounter = document.getElementById('bodies-counter');
     this.collisionCounter = document.getElementById('collisions-counter');
+    this.lostMassCounter = document.getElementById('lost-mass-counter');
     this.cameraPosition = document.getElementById('camera-position');
     this.speedSlider = document.getElementById('speed-slider');
     this.hudSpeedValue = document.getElementById('hud-speed-value');
@@ -132,10 +133,21 @@ export class HUD {
     if (this.collisionCounter) {
       this.collisionCounter.textContent = collisionSummary.collisionCount.toString();
     }
+    this.updateLostMass(collisionSummary.lostMass);
   }
 
   updateBodiesCounter(data) {
     if (this.bodiesCounter) this.bodiesCounter.textContent = data.bodyCount.toString();
+    this.updateLostMass(data.lostMass);
+  }
+
+  /**
+   * Mass is not conserved by design (vaporization, sub-pixel fragments, the body cap).
+   * Showing the running total keeps those losses visible instead of silent.
+   */
+  updateLostMass(lostMass) {
+    if (!this.lostMassCounter || lostMass === undefined) return;
+    this.lostMassCounter.textContent = lostMass > 0 ? formatValue(lostMass) : '0';
   }
 
   setControlsDisabled(disabled) {
@@ -176,9 +188,9 @@ export class HUD {
       return;
     }
 
-    const speed = Math.hypot(b.velocity.x, b.velocity.y);
-    const kinetic = 0.5 * b.mass * speed ** 2;
-    const name = b.name || `Body ${b.id || ''}`;
+    const speed = b.speed();
+    const kinetic = b.kineticEnergy();
+    const name = b.name || `Body ${b.id}`;
 
     this.tooltipEl.style.display = 'block';
     this.tooltipEl.style.left = `${screenX + 15}px`;

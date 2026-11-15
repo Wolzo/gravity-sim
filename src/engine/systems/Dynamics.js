@@ -2,8 +2,8 @@ import { PHYSICS } from '../../shared/config/PhysicsConfig.js';
 
 export class Dynamics {
   /**
-   * Applies the Barnes-Hut algorithm to calculate gravitational forces on all bodies.
-   * Formula: F = G * (m1 * m2) / (r^2 + softening^2)
+   * Applies the Barnes-Hut algorithm to calculate gravitational accelerations on all bodies.
+   * Formula: a = G * m / (r^2 + softening^2)
    * The QuadTree is used to approximate distant clusters of mass as single bodies (O(N log N)).
    */
   static applyGravity(bodies, gravityTree) {
@@ -23,9 +23,8 @@ export class Dynamics {
 
     for (let i = 0; i < count; i++) {
       const body = bodies[i];
-      const force = gravityTree.calculateForce(body, G, softening);
-      body.acceleration.x += force.x;
-      body.acceleration.y += force.y;
+      gravityTree.accumulateAcceleration(body, G, softening);
+      body.accelerationValid = true;
     }
   }
 
@@ -33,14 +32,13 @@ export class Dynamics {
    * Performs the first step of Velocity Verlet integration: updates position and half-velocity.
    * Position: r(t+dt) = r(t) + v(t)dt + 0.5 * a(t) * dt^2
    * Velocity (half): v(t+0.5dt) = v(t) + 0.5 * a(t) * dt
-   * * Also handles the recording of trail points based on distance thresholds.
+   * Also handles the recording of trail points based on distance thresholds.
    */
   static integratePosition(bodies, dt, updateTrail) {
     const halfDt = dt * 0.5;
     const dtSqHalf = dt * dt * 0.5;
 
-    const minTrailDist = PHYSICS.MIN_TRAIL_DISTANCE_SQ;
-    const maxTrailLen = PHYSICS.TRAIL_LENGTH;
+    const minTrailDistSq = PHYSICS.MIN_TRAIL_DISTANCE_SQ;
 
     for (const body of bodies) {
       const ax = body.acceleration.x;
@@ -53,25 +51,17 @@ export class Dynamics {
       body.velocity.y += ay * halfDt;
 
       if (updateTrail) {
-        let shouldAdd = false;
         const trail = body.trail;
+        let shouldAdd = trail.length === 0;
 
-        if (trail.length === 0) {
-          shouldAdd = true;
-        } else {
-          const last = trail[trail.length - 1];
-          const dx = body.position.x - last.x;
-          const dy = body.position.y - last.y;
-          if (dx * dx + dy * dy > minTrailDist) {
-            shouldAdd = true;
-          }
+        if (!shouldAdd) {
+          const dx = body.position.x - trail.lastX();
+          const dy = body.position.y - trail.lastY();
+          shouldAdd = dx * dx + dy * dy > minTrailDistSq;
         }
 
         if (shouldAdd) {
-          trail.push({ x: body.position.x, y: body.position.y });
-          if (maxTrailLen !== -1 && trail.length > maxTrailLen) {
-            trail.shift();
-          }
+          trail.push(body.position.x, body.position.y);
         }
       }
     }
